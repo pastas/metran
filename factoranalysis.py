@@ -69,7 +69,6 @@ class FactorAnalysis:
                 nfactors = min(nfactors, self.maxfactors)
         except:
             nfactors = 1
-        nfactors = 2
         factors = self._minres(correlation, nfactors)
 
         if (factors is not None) and (np.count_nonzero(factors) > 0):
