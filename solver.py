@@ -237,13 +237,6 @@ class LmfitSolve(BaseSolver):
 
         self.result = self.mini.minimize(method=method)
 
-        # scale covariances by scale parameter
-        kf = self.ml.simulate(self.result.params)
-        sigma = kf.get_scale()
-        print(sigma)
-        self.result.params = self.ml.scale_covariances(self.result.params,
-                                                       sigma)
-
         # calculate covariance matrix using finite differences
         self.result = self.stdcorr(self.result, self.objfunction,
                                    (callback,))

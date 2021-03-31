@@ -143,10 +143,12 @@ class Metran:
                 1 - (
                     1. - np.exp(-1 * p[name]))**2) * self.specificity[n]
         for n in range(ncdf):
-            name = "cdf" + str(n + 1) + "_alpha"
-            transition_covariance[nsdf + n, nsdf + n] = (
-                1 - (
-                    1. - np.exp(-1 * p[name]))**2) * self.cdf_variance[n]
+            name = "cdf" + str(n+1) + "_q"
+            transition_covariance[nsdf+n, nsdf+n] =p[name]
+            # name = "cdf" + str(n+1) + "_alpha"
+            # transition_covariance[nsdf+n, nsdf+n] = (
+            #     1 - (
+            #     1. - np.exp(-1 * p[name]))**2)
         return transition_covariance
 
     def get_transition_variance(self, p=None, initial=False):
@@ -168,7 +170,7 @@ class Metran:
         return observation_matrix
 
     def get_observation_variance(self):
-        (nsdf, ncdf) = self.factors.shape
+        (nsdf, _) = self.factors.shape
         observation_variance = np.zeros(nsdf)
         return observation_variance
 
@@ -181,22 +183,22 @@ class Metran:
 
     def set_init_parameters(self):
         pinit_alpha = 3
-        # pinit_q = 0.1
+        pinit_q = 0.1
         (nsdf, ncdf) = self.factors.shape
 
         for n in range(ncdf):
             self.parameters.loc["cdf" + str(n + 1) + "_alpha"] = (
                 pinit_alpha, 0, 10, True, "cdf")
 
-        # for n in range(ncdf):
-        #     if n == 0: # and parmulti['r'][n] == 0:
-        #         # fix parameter to 1 for concentrated likelihood optimization
-        #         # only valid if no measurement error R is included
-        #         self.parameters.loc["cdf" + str(n+1) + "_q"] = (
-        #             pinit_q, 0, None, False, "cdf")
-        #     else:
-        #         self.parameters.loc["cdf" + str(n+1) + "_q"] = (
-        #             pinit_q, 0, None, True, "cdf")
+        for n in range(ncdf):
+            # if n == 0: # and parmulti['r'][n] == 0:
+            #     # fix parameter to 1 for concentrated likelihood optimization
+            #     # only valid if no measurement error R is included
+            #     self.parameters.loc["cdf" + str(n+1) + "_q"] = (
+            #         pinit_q, 0, None, False, "cdf")
+            # else:
+            self.parameters.loc["cdf" + str(n+1) + "_q"] = (
+                pinit_q, 0, None, True, "cdf")
 
         for n in range(nsdf):
             self.parameters.loc["sdf" + str(n + 1) + "_alpha"] = (

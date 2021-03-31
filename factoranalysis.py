@@ -1,14 +1,10 @@
-# -*- coding: utf-8 -*-
-"""Created on Mon Mar 29 08:38:33 2021.
-
-@author: Wilbert Berendrecht
+"""This module contains the FactorAnalysis class for Metran in Pastas.
 """
 
 from logging import getLogger
 
 import numpy as np
 import scipy.optimize as scopt
-from pastas.utils import validate_name
 
 
 class FactorAnalysis:
@@ -16,43 +12,28 @@ class FactorAnalysis:
 
     Parameters
     ----------
-    oseries: list of pandas.Series or pastas.TimeSeries
-        list of pandas Series objects containing the time series. The
+    oseries: pandas.DataFrame
+        pandas DataFrame object containing the time series. The
         series can be non-equidistant.
-    name: str, optional
-        String with the name of the model, used in plotting and saving.
-    metadata: dict, optional
-        Dictionary containing metadata of the oseries, passed on the to
-        oseries when creating a pastas TimeSeries object. hence,
-        ml.oseries.metadata will give you the metadata.
 
     Returns
     -------
-    ml: pastas.metran.Metran
-        Pastas Metran instance.
+    FactorAnalysis instance
 
     Examples
     --------
-    A minimal working example of the Model class is shown below:
+    A minimal working example of the FactorAnalysis class is shown below:
 
-    >>> oseries = pd.Series([1,2,1], index=pd.to_datetime(range(3), unit="D"))
-    >>> ml = Model(oseries)
+    >>> fa = FactorAnalysis(oseries)
+    >>> factors = fa.solve()
+
     """
 
-    def __init__(self, oseries, name=None):  # , metadata=None):
+    def __init__(self, oseries, maxfactors=None):
 
         self.logger = getLogger(__name__)
-
         self.oseries = oseries
-
-        if name is None:
-            name = 'Cluster'
-        self.name = validate_name(name)
-
-        # Default settings for factor analysis
-        self.settings = {
-            "max_cdf": 3,
-        }
+        self.maxfactors = maxfactors
 
     def get_specificity(self):
         specificity = []
@@ -81,11 +62,14 @@ class FactorAnalysis:
 
         # Velicer's MAP test
         try:
-            nfactors, nfactors4 = self._maptest(correlation,
+            nfactors, _ = self._maptest(correlation,
                                                 eigvec, self.eigval)
             nfactors = max(nfactors, 1)
+            if self.maxfactors is not None:
+                nfactors = min(nfactors, self.maxfactors)
         except:
             nfactors = 1
+        nfactors = 2
         factors = self._minres(correlation, nfactors)
 
         if (factors is not None) and (np.count_nonzero(factors) > 0):
@@ -206,7 +190,7 @@ class FactorAnalysis:
             return
 
         bounds = list()
-        for i in range(len(start)):
+        for _ in range(len(start)):
             bounds.append((0.005, 1))
 
         res = scopt.minimize(self._minresfun, start, method='L-BFGS-B',
@@ -216,6 +200,7 @@ class FactorAnalysis:
 
         return loadings
 
+    @staticmethod
     def _maptest(cov, eigvec, eigval):
         """Velicer's MAP test.
 

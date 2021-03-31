@@ -40,8 +40,8 @@ class SPKalmanFilter():
         self.nstate = self.transition_matrix.shape[0]
 
     def get_mle(self):
-        return (self.nobs * (np.log(2 * np.pi) + 1) + np.sum(self.detfs)
-                + self.nobs * np.log(np.sum(self.sigmas) / self.nobs)
+        return (self.nobs * np.log(2*np.pi) + np.sum(self.detfs)
+                + np.sum(self.sigmas)
                 )
 
     def get_scale(self):
