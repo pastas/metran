@@ -1,5 +1,4 @@
-"""
-This module contains the  solver that is available for Pastas Metran.
+"""This module contains the  solver that is available for Pastas Metran.
 
 All solvers inherit from the BaseSolver class, which contains general method
 for selecting the correct time series to misfit and options to weight the
@@ -9,15 +8,14 @@ residuals or noise series.
 To solve a model the following syntax can be used:
 
 >>> ml.solve(solver=ps.LmfitSolve)
-
 """
 
+from copy import deepcopy
 from logging import getLogger
 
 import numpy as np
 from pandas import DataFrame
 from statsmodels.stats.moment_helpers import cov2corr
-from copy import deepcopy
 
 logger = getLogger(__name__)
 
@@ -64,7 +62,6 @@ class BaseSolver:
         to parameter uncertainty. In other words, there is a 95% probability
         that the true best-fit line for the observed data lies within the
         95% confidence interval.
-
         """
         return self._get_confidence_interval(func=self.ml.simulate, n=n,
                                              alpha=alpha, **kwargs)
@@ -106,7 +103,6 @@ class BaseSolver:
         -------
         numpy.ndarray
             Numpy array with N parameter samples.
-
         """
         p = self.ml.get_parameters(name=name)
         pcov = self._get_covariance_matrix(name=name)
@@ -156,11 +152,10 @@ class BaseSolver:
         -------
         pcov: pandas.DataFrame
             Pandas DataFrame with the covariances for the parameters.
-
         """
         if name:
             index = self.ml.parameters.loc[self.ml.parameters.loc[:,
-                                           "name"] == name].index
+                                                                  "name"] == name].index
         else:
             index = self.ml.parameters.index
 
@@ -182,14 +177,13 @@ class BaseSolver:
         -------
         pcor: pandas.DataFrame
             n x n Pandas DataFrame with the correlations.
-
         """
         pcor = pcov.loc[pcov.index, pcov.index].copy()
 
         for i in pcor.index:
             for j in pcor.columns:
                 pcor.loc[i, j] = pcov.loc[i, j] / \
-                                 np.sqrt(pcov.loc[i, i] * pcov.loc[j, j])
+                    np.sqrt(pcov.loc[i, i] * pcov.loc[j, j])
         return pcor
 
     def to_dict(self):
@@ -239,20 +233,20 @@ class LmfitSolve(BaseSolver):
                                     params=parameters,
                                     scale_covar=False,
                                     fcn_args=(callback,),
-                                      **kwargs)
+                                    **kwargs)
 
         self.result = self.mini.minimize(method=method)
 
         # scale covariances by scale parameter
         kf = self.ml.simulate(self.result.params)
         sigma = kf.get_scale()
-        print (sigma)
+        print(sigma)
         self.result.params = self.ml.scale_covariances(self.result.params,
                                                        sigma)
 
         # calculate covariance matrix using finite differences
         self.result = self.stdcorr(self.result, self.objfunction,
-                                    (callback,))
+                                   (callback,))
 
         # Set all parameter attributes
         pcov = None
@@ -283,10 +277,9 @@ class LmfitSolve(BaseSolver):
 
     def stdcorr(self, optresult, f, fcn_args, epsilon=None, cutoff=True,
                 diff='forward'):
-        """
-        Estimate correlation matrix and standard error of parameter estimates
-        using a numerical approximation to the Hessian matrix of cost function
-        at location x0. This function is applied as post-processing of
+        """Estimate correlation matrix and standard error of parameter
+        estimates using a numerical approximation to the Hessian matrix of cost
+        function at location x0. This function is applied as post-processing of
         optimization result of :func:`lmfit.Minimize`
 
         Parameters
@@ -331,7 +324,6 @@ class LmfitSolve(BaseSolver):
         Ridout, M.S. (2009), Statistical applications of the complex-step
         method of numerical differentiation. The American Statistician,
         63, 66-74
-
         """
         # store initial parameter values in local variable initvalue,
         #  to prevent them from being overwritten
@@ -350,7 +342,7 @@ class LmfitSolve(BaseSolver):
         # set stderr of (non-vary and non-expr) to None
         for name in optresult.params:
             if (not(optresult.params[name].vary)
-                and optresult.params[name].expr is None):
+                    and optresult.params[name].expr is None):
                 optresult.params[name].stderr = None
 
        # initialize local variables and objects
@@ -368,7 +360,7 @@ class LmfitSolve(BaseSolver):
         # define epsilon
         if epsilon is None:
             EPS = np.MachAr().eps
-            epsilon = EPS**(1./4)
+            epsilon = EPS**(1. / 4)
 
         # maximum epsilon
         epsilon_max = 1000. * epsilon
@@ -381,7 +373,7 @@ class LmfitSolve(BaseSolver):
             xx = x0
             if diff == 'forward':
                 f0 = self.approx_fprime(optlocal, f, epsilon,
-                                        neval = None, fcn_args=fcn_args)
+                                        neval=None, fcn_args=fcn_args)
             for j in range(n):
                 d = epsilon * max(np.abs(x0[j]), 0.1)
                 # forward difference
@@ -395,10 +387,10 @@ class LmfitSolve(BaseSolver):
                     params.update_constraints()
                     fb = self.approx_fprime(optlocal, f, epsilon, neval=j,
                                             fcn_args=fcn_args)
-                    hessian[:j+1, j] = (ff-fb) / (2*d)
+                    hessian[:j + 1, j] = (ff - fb) / (2 * d)
                 else:
-                    hessian[:j+1, j] = (ff-f0[:j+1]) / d
-                hessian[j, :j+1] = hessian[:j+1, j]
+                    hessian[:j + 1, j] = (ff - f0[:j + 1]) / d
+                hessian[j, :j + 1] = hessian[:j + 1, j]
                 # restore initial value of x0
                 params[x0name[j]].value = xx[j]
                 params.update_constraints()
@@ -415,7 +407,7 @@ class LmfitSolve(BaseSolver):
                         if epsilon > epsilon_max:
                             calchess = False
                 if np.amin(np.diag(cov)) > 0:
-                    corr,std = cov2corr(cov, return_std=True)
+                    corr, std = cov2corr(cov, return_std=True)
                     if np.isnan(std).any():
                         epsilon = epsilon * 10.
                         if epsilon > epsilon_max:
@@ -426,7 +418,7 @@ class LmfitSolve(BaseSolver):
                     epsilon = epsilon * 10.
                     if epsilon > epsilon_max:
                         calchess = False
-                        corr,std = cov2corr(cov, return_std=True)
+                        corr, std = cov2corr(cov, return_std=True)
             else:
                 # if hessian has NaN, increase epsilon and recalculate hessian
                 epsilon = epsilon * 10.
@@ -437,7 +429,7 @@ class LmfitSolve(BaseSolver):
         # fill optresult with std, covar and corr values
         if not np.isnan(std).any():
             # initialize covariance matrix
-            optresult.covar = np.zeros((n,n))
+            optresult.covar = np.zeros((n, n))
             for j in range(n):
                 if optresult.params[x0name[j]].vary:
                     covidj = optresult.var_names.index(x0name[j])
@@ -445,7 +437,7 @@ class LmfitSolve(BaseSolver):
                     optresult.params[x0name[j]].init_value = initvalue[j]
                     # check if rmeas differs significantly (3*std) from zero.
                     if (cutoff and x0name[j] == 'res_r'
-                        and 3*std[j] > optresult.params[x0name[j]].value):
+                            and 3 * std[j] > optresult.params[x0name[j]].value):
                         # if not, then the assumption of normality
                         # would not be valid
                         # standard deviation and correlation
@@ -459,8 +451,8 @@ class LmfitSolve(BaseSolver):
                                  .correl[x0name[j]]) = 0.
                                 (optresult.params[x0name[j]]
                                  .correl[x0name[k]]) = 0.
-                                optresult.covar[covidj,covidk] = None
-                                optresult.covar[covidk,covidj] = None
+                                optresult.covar[covidj, covidk] = None
+                                optresult.covar[covidk, covidj] = None
                     else:
                         optresult.params[x0name[j]].stderr = std[j]
                         optresult.params[x0name[j]].correl = {}
@@ -468,8 +460,8 @@ class LmfitSolve(BaseSolver):
                             if optresult.params[x0name[k]].vary:
                                 covidk = optresult.var_names.index(x0name[k])
                                 (optresult.params[x0name[j]]
-                                 .correl[x0name[k]]) = corr[j,k]
-                                optresult.covar[covidj,covidk] = cov[j,k]
+                                 .correl[x0name[k]]) = corr[j, k]
+                                optresult.covar[covidj, covidk] = cov[j, k]
 
         uvars = None
         if has_expr:
@@ -495,10 +487,10 @@ class LmfitSolve(BaseSolver):
         return optresult
 
     @staticmethod
-    def approx_fprime(optresult, f, epsilon, neval = None, fcn_args=(),
+    def approx_fprime(optresult, f, epsilon, neval=None, fcn_args=(),
                       diff='forward'):
-        """
-        Finite-difference approximation of the gradient of a scalar function
+        """Finite-difference approximation of the gradient of a scalar
+        function.
 
         Parameters
         ----------
@@ -542,7 +534,6 @@ class LmfitSolve(BaseSolver):
         .. math::
             \\partial\\mathcal{L}/\\partial\\psi_i
             =\\frac{\\mathcal{L}(\\psi+e_i)- \\mathcal{L}(\\psi)}{e_i}
-
         """
         xk = []
         xkname = []
@@ -553,12 +544,12 @@ class LmfitSolve(BaseSolver):
 
         if epsilon is None:
             EPS = np.MachAr().eps
-            epsilon = EPS**(1./3)
+            epsilon = EPS**(1. / 3)
 
         if neval is None:
             nk = len(xk)
         else:
-            nk = neval+1
+            nk = neval + 1
 
         grad = np.zeros((nk,), float)
         ei = np.zeros((len(xk),), float)
@@ -578,9 +569,9 @@ class LmfitSolve(BaseSolver):
                 # update parameters with expressions
                 optresult.params.update_constraints()
                 gb = f(*((optresult.params,) + fcn_args))
-                grad[k] = (gf-gb) / (2*d[k])
+                grad[k] = (gf - gb) / (2 * d[k])
             else:
-                grad[k] = (gf-g0) / d[k]
+                grad[k] = (gf - g0) / d[k]
             optresult.params[xkname[k]].value = xk[k]
             # update parameters with expressions
             optresult.params.update_constraints()
@@ -590,8 +581,7 @@ class LmfitSolve(BaseSolver):
 
     @staticmethod
     def nearPSD(A, epsilon=0):
-        """
-        Get the nearest Positive Semi-Definite matrix of A
+        """Get the nearest Positive Semi-Definite matrix of A.
 
         Parameters
         ----------
@@ -611,16 +601,15 @@ class LmfitSolve(BaseSolver):
 
         .. math::
             R^2 = \\frac{var(ts) - var(res)}{var(ts)}
-
         """
         n = A.shape[0]
         eigval, eigvec = np.linalg.eig(A)
-        val = np.matrix(np.maximum(eigval,epsilon))
+        val = np.matrix(np.maximum(eigval, epsilon))
         vec = np.matrix(eigvec)
         with np.errstate(divide='ignore', invalid='ignore'):
-            T = 1 / (np.multiply(vec,vec) * val.T)
+            T = 1 / (np.multiply(vec, vec) * val.T)
             T = np.matrix(np.sqrt(np.diag(np.array(T).reshape((n)))))
-            B = T  * vec * np.diag(np.array(np.sqrt(val)).reshape((n)))
+            B = T * vec * np.diag(np.array(np.sqrt(val)).reshape((n)))
         out = B * B.T
 
         return out

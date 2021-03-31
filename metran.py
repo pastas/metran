@@ -1,21 +1,18 @@
-"""This module contains the Metran class in Pastas.
-
-"""
+"""This module contains the Metran class in Pastas."""
 
 from logging import getLogger
 
 import numpy as np
-from pandas import concat, DataFrame
-
-from factoranalysis import FactorAnalysis
-from kalmanfilter import SPKalmanFilter
-
+from pandas import DataFrame, concat
 from pastas.decorators import set_parameter
 from pastas.modelstats import Statistics
 from pastas.plots import Plotting
-from solver import LmfitSolve
 from pastas.timeseries import TimeSeries
 from pastas.utils import validate_name
+
+from factoranalysis import FactorAnalysis
+from kalmanfilter import SPKalmanFilter
+from solver import LmfitSolve
 
 
 class Metran:
@@ -44,10 +41,9 @@ class Metran:
 
     >>> oseries = pd.Series([1,2,1], index=pd.to_datetime(range(3), unit="D"))
     >>> ml = Model(oseries)
-
     """
 
-    def __init__(self, oseries, name=None):#, metadata=None):
+    def __init__(self, oseries, name=None):  # , metadata=None):
 
         self.logger = getLogger(__name__)
 
@@ -127,11 +123,11 @@ class Metran:
         nstate = nsdf + ncdf
         transition_matrix = np.zeros((nstate, nstate))
         for n in range(nsdf):
-            name = "sdf" + str(n+1) + "_alpha"
+            name = "sdf" + str(n + 1) + "_alpha"
             transition_matrix[n, n] = 1. - np.exp(-p[name])
         for n in range(ncdf):
-            name = "cdf" + str(n+1) + "_alpha"
-            transition_matrix[nsdf+n, nsdf+n] = (
+            name = "cdf" + str(n + 1) + "_alpha"
+            transition_matrix[nsdf + n, nsdf + n] = (
                 1. - np.exp(-1 * p[name]))
         return transition_matrix
 
@@ -142,15 +138,15 @@ class Metran:
         nstate = nsdf + ncdf
         transition_covariance = np.eye(nstate)
         for n in range(nsdf):
-            name = "sdf" + str(n+1) + "_alpha"
+            name = "sdf" + str(n + 1) + "_alpha"
             transition_covariance[n, n] = (
                 1 - (
-                1. - np.exp(-1 * p[name]))**2) * self.specificity[n]
+                    1. - np.exp(-1 * p[name]))**2) * self.specificity[n]
         for n in range(ncdf):
-            name = "cdf" + str(n+1) + "_alpha"
-            transition_covariance[nsdf+n, nsdf+n] = (
+            name = "cdf" + str(n + 1) + "_alpha"
+            transition_covariance[nsdf + n, nsdf + n] = (
                 1 - (
-                1. - np.exp(-1 * p[name]))**2) * self.cdf_variance[n]
+                    1. - np.exp(-1 * p[name]))**2) * self.cdf_variance[n]
         return transition_covariance
 
     def get_transition_variance(self, p=None, initial=False):
@@ -167,8 +163,8 @@ class Metran:
         observation_matrix[:, :nsdf] = np.eye(nsdf)
         for n in range(nsdf):
             for k in range(ncdf):
-                name = "cdf" + str(k+1) + "_c" + str(n+1)
-                observation_matrix[n, nsdf+k] = p[name]
+                name = "cdf" + str(k + 1) + "_c" + str(n + 1)
+                observation_matrix[n, nsdf + k] = p[name]
         return observation_matrix
 
     def get_observation_variance(self):
@@ -189,7 +185,7 @@ class Metran:
         (nsdf, ncdf) = self.factors.shape
 
         for n in range(ncdf):
-            self.parameters.loc["cdf" + str(n+1) + "_alpha"] = (
+            self.parameters.loc["cdf" + str(n + 1) + "_alpha"] = (
                 pinit_alpha, 0, 10, True, "cdf")
 
         # for n in range(ncdf):
@@ -203,7 +199,7 @@ class Metran:
         #             pinit_q, 0, None, True, "cdf")
 
         for n in range(nsdf):
-            self.parameters.loc["sdf" + str(n+1) + "_alpha"] = (
+            self.parameters.loc["sdf" + str(n + 1) + "_alpha"] = (
                 pinit_alpha, 0, 10, True, "sdf")
 
         # for n in range(nsdf):
@@ -212,59 +208,51 @@ class Metran:
 
         for n in range(nsdf):
             for k in range(ncdf):
-                self.parameters.loc["cdf" + str(k+1) + "_c" + str(n+1)] = (
+                self.parameters.loc["cdf" + str(k + 1) + "_c" + str(n + 1)] = (
                     self.factors[n, k], None, None, False, "cdf")
 
     @set_parameter
     def _set_initial(self, name, value):
-        """
-        Internal method to set the initial parameter value.
+        """Internal method to set the initial parameter value.
 
         Notes
         -----
         The preferred method for parameter setting is through the model.
-
         """
         self.parameters.loc[name, "initial"] = value
 
     @set_parameter
     def _set_pmin(self, name, value):
-        """
-        Internal method to set the minimum value of the noisemodel.
+        """Internal method to set the minimum value of the noisemodel.
 
         Notes
         -----
         The preferred method for parameter setting is through the model.
-
         """
         self.parameters.loc[name, "pmin"] = value
 
     @set_parameter
     def _set_pmax(self, name, value):
-        """
-        Internal method to set the maximum parameter values.
+        """Internal method to set the maximum parameter values.
 
         Notes
         -----
         The preferred method for parameter setting is through the model.
-
         """
         self.parameters.loc[name, "pmax"] = value
 
     @set_parameter
     def _set_vary(self, name, value):
-        """
-        Internal method to set if the parameter is varied.
+        """Internal method to set if the parameter is varied.
 
         Notes
         -----
         The preferred method for parameter setting is through the model.
-
         """
         self.parameters.loc[name, "vary"] = value
 
     def simulate(self, p):
-        """Simulate
+        """Simulate.
 
         Parameters
         ----------
@@ -276,7 +264,6 @@ class Metran:
         -------
         SPKalmanFilter Class
             Results of Kalmanfilter
-
         """
         self.kf.set_matrices(*self.get_matrices(p))
         self.kf.runf95()
@@ -296,7 +283,6 @@ class Metran:
         -------
         parameters: pandas.DataFrame
             pandas.Dataframe with the parameters.
-
         """
         if not(initial) and "optimal" in self.parameters:
             parameters = self.parameters["optimal"]
@@ -314,8 +300,7 @@ class Metran:
         return p
 
     def scale_covariances(self, params, fact):
-        """
-        Rescale optimized parameters and associated standard deviations
+        """Rescale optimized parameters and associated standard deviations.
 
         Parameters
         ----------
@@ -340,14 +325,14 @@ class Metran:
     def scale_parameters(self, params):
         dim = self.factors.shape[0]
         for n in range(dim):
-            name = 'sdf'+str(n+1)+'_q'
+            name = 'sdf' + str(n + 1) + '_q'
             params[name] = self._scale_parameter(params[name],
                                                  self.stdfac[n]**2)
-            name = 'r'+str(n+1)
+            name = 'r' + str(n + 1)
             params[name] = self._scale_parameter(params[name],
                                                  self.stdfac[n]**2)
             for k in range(self.nfactors):
-                name = 'cdf'+str(k+1)+'_c'+str(n+1)
+                name = 'cdf' + str(k + 1) + '_c' + str(n + 1)
                 params[name] = self._scale_parameter(params[name],
                                                      self.stdfac[n])
         return params
@@ -383,7 +368,6 @@ class Metran:
         --------
         pastas.solver
             Different solver objects are available to estimate parameters.
-
         """
 
         # Store the solve instance
@@ -439,7 +423,6 @@ class Metran:
         The reported values for the fit use the residuals time series where
         possible. If interpolation is used this means that the result may
         slightly differ compared to using ml.simulate() and ml.observations().
-
         """
         model = {
             "nfev": self.fit.nfev,
@@ -472,9 +455,9 @@ class Metran:
         w = max(width - 44, 0)
         header = "Fit report {name:<16}{string}Fit Statistics\n" \
                  "{line}\n".format(
-            name=self.name[:14],
-            string=string.format("", fill=' ', align='>', width=w),
-            line=string.format("", fill='=', align='>', width=width))
+                     name=self.name[:14],
+                     string=string.format("", fill=' ', align='>', width=w),
+                     line=string.format("", fill='=', align='>', width=width))
 
         basic = ""
         w = max(width - 45, 0)
@@ -485,9 +468,10 @@ class Metran:
         # Create the parameters block
         parameters = "\nParameters ({n_param} were optimized)\n{line}\n" \
                      "{parameters}".format(
-            n_param=parameters.vary.sum(),
-            line=string.format("", fill='=', align='>', width=width),
-            parameters=parameters)
+                         n_param=parameters.vary.sum(),
+                         line=string.format(
+                             "", fill='=', align='>', width=width),
+                         parameters=parameters)
 
         if output == "full":
             cor = {}

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Mar 29 08:38:33 2021
+"""Created on Mon Mar 29 08:38:33 2021.
 
 @author: Wilbert Berendrecht
 """
 
 from logging import getLogger
+
 import numpy as np
 import scipy.optimize as scopt
 from pastas.utils import validate_name
@@ -37,10 +37,9 @@ class FactorAnalysis:
 
     >>> oseries = pd.Series([1,2,1], index=pd.to_datetime(range(3), unit="D"))
     >>> ml = Model(oseries)
-
     """
 
-    def __init__(self, oseries, name=None):#, metadata=None):
+    def __init__(self, oseries, name=None):  # , metadata=None):
 
         self.logger = getLogger(__name__)
 
@@ -59,25 +58,22 @@ class FactorAnalysis:
         specificity = []
         dim = self.factors.shape[0]
         for n in range(dim):
-            specificity.append(1. - np.sum(np.square(self.factors[n,:])))
+            specificity.append(1. - np.sum(np.square(self.factors[n, :])))
         return specificity
 
     def get_eigval_weight(self):
         return self.eigval / np.sum(self.eigval)
 
     def solve(self):
-        """
-        Factor analysis
-            Performs factor analysis using minres algorithm.
-            Number of eigenvalues is determined by MAP test.
-            If more than one eigenvalue is used, the factors are rotated using orthogonal rotation.
+        """Factor analysis Performs factor analysis using minres algorithm.
+        Number of eigenvalues is determined by MAP test. If more than one
+        eigenvalue is used, the factors are rotated using orthogonal rotation.
 
         Parameters
         ----------
 
         Returns
         -------
-
         """
 
         correlation = self.get_correlations()
@@ -121,7 +117,7 @@ class FactorAnalysis:
                   f"{nfactors}"
             self.logger.info(msg)
 
-            fep = 100*np.sum(self.get_eigval_weight()[:nfactors])
+            fep = 100 * np.sum(self.get_eigval_weight()[:nfactors])
             msg = "Percentage explained by these factors:: " + \
                   f"{fep}"
             self.logger.info(msg)
@@ -135,9 +131,8 @@ class FactorAnalysis:
 
     @staticmethod
     def _rotate(phi, gamma=1, maxiter=20, tol=1e-6):
-        """
-        Rotate factor loadings
-            using varimax, quartimax, equamax, or parsimax rotation
+        """Rotate factor loadings using varimax, quartimax, equamax, or
+        parsimax rotation.
 
         Parameters
         ----------
@@ -163,17 +158,16 @@ class FactorAnalysis:
         ----------
         Kaiser, H.F. (1958): The varimax criterion for analytic rotation in
         factor analysis. Psychometrika 23: 187–200.
-
         """
         p, k = phi.shape
         R = np.eye(k)
-        d=0
+        d = 0
         for _ in range(maxiter):
             d_old = d
             Lambda = np.dot(phi, R)
             u, s, vh = np.linalg.svd(np.dot(phi.T, np.asarray(Lambda)**3
-                                     - (gamma/p) * np.dot(Lambda, np.diag(
-                                     np.diag(np.dot(Lambda.T, Lambda))))))
+                                            - (gamma / p) * np.dot(Lambda, np.diag(
+                                                np.diag(np.dot(Lambda.T, Lambda))))))
             R = np.dot(u, vh)
             d = np.sum(s)
             if (d_old != 0) and (d / d_old < 1 + tol):
@@ -184,9 +178,7 @@ class FactorAnalysis:
         return phi_rot
 
     def _minres(self, s, nf, covar=False):
-        """
-        Minimum residuals (minres) algorithm
-        for estimating factor loadings
+        """Minimum residuals (minres) algorithm for estimating factor loadings.
 
         Parameters
         ----------
@@ -201,12 +193,11 @@ class FactorAnalysis:
         -------
         loadings : array
             estimated factor loadings
-
         """
 
         sorg = np.copy(s)
         try:
-            ssmc =  1 - 1/np.diag(np.linalg.inv(s))
+            ssmc = 1 - 1 / np.diag(np.linalg.inv(s))
             if (not(covar) and np.sum(ssmc) == nf) and (nf > 1):
                 start = 0.5 * np.ones(nf, dtype=float)
             else:
@@ -219,15 +210,14 @@ class FactorAnalysis:
             bounds.append((0.005, 1))
 
         res = scopt.minimize(self._minresfun, start, method='L-BFGS-B',
-                            jac=self._minresgrad, bounds=bounds, args=(s, nf))
+                             jac=self._minresgrad, bounds=bounds, args=(s, nf))
 
         loadings = self._get_loadings(res.x, sorg, nf)
 
         return loadings
 
     def _maptest(cov, eigvec, eigval):
-        """
-        Velicer's MAP test
+        """Velicer's MAP test.
 
         Parameters
         ----------
@@ -268,35 +258,35 @@ class FactorAnalysis:
         fm = np.array([np.arange(nvars, dtype=float),
                        np.arange(nvars, dtype=float)]).T
         np.put(fm, [0, 1], ((np.sum(np.sum(np.square(cov))) - nvars)
-                            / (nvars * (nvars-1))))
+                            / (nvars * (nvars - 1))))
         fm4 = np.copy(fm)
         np.put(fm4, [0, 1],
                ((np.sum(np.sum(np.square(np.square(cov)))) - nvars)
-                / (nvars * (nvars-1))))
+                / (nvars * (nvars - 1))))
 
-        for m in range(nvars-1):
-            biga = np.matrix(eigvec[:, :m+1])
+        for m in range(nvars - 1):
+            biga = np.matrix(eigvec[:, :m + 1])
             partcov = cov - np.dot(biga, biga.T)
             # exit function with nfacts=1 if diag partcov contains negatives
             if np.amin(np.diag(partcov)) < 0:
                 return 1, 1
             d = np.diag((1 / np.sqrt(np.diag(partcov))))
             pr = np.dot(d, np.dot(partcov, d))
-            np.put(fm, [m+1, 1], ((np.sum(np.sum(np.square(pr))) - nvars)
-                                  / (nvars * (nvars-1))))
-            np.put(fm4, [m+1, 1], ((np.sum(np.sum(np.square(np.square(pr))))
-                                    - nvars) / (nvars * (nvars-1))))
+            np.put(fm, [m + 1, 1], ((np.sum(np.sum(np.square(pr))) - nvars)
+                                    / (nvars * (nvars - 1))))
+            np.put(fm4, [m + 1, 1], ((np.sum(np.sum(np.square(np.square(pr))))
+                                      - nvars) / (nvars * (nvars - 1))))
 
         minfm = fm[0, 1]
         nfacts = 0
         minfm4 = fm4[0, 1]
         nfacts4 = 0
         for s in range(nvars):
-            fm[s, 0]  = s
+            fm[s, 0] = s
             fm4[s, 0] = s
             if fm[s, 1] < minfm:
-                minfm  = fm[s, 1]
-                nfacts  = s
+                minfm = fm[s, 1]
+                nfacts = s
             if fm4[s, 1] < minfm4:
                 minfm4 = fm4[s, 1]
                 nfacts4 = s
@@ -305,8 +295,7 @@ class FactorAnalysis:
 
     @staticmethod
     def _minresfun(psi, s, nf):
-        """
-        Function to be minimized in minimum residuals (minres) algorithm
+        """Function to be minimized in minimum residuals (minres) algorithm.
 
         Parameters
         ----------
@@ -321,28 +310,26 @@ class FactorAnalysis:
         -------
         obj : array
             objective function defined as sum of residuals
-
         """
 
         s2 = np.copy(s)
-        np.fill_diagonal(s2, 1-psi)
+        np.fill_diagonal(s2, 1 - psi)
         eigval, eigvec = np.linalg.eigh(s2)
-        eigval[eigval < np.MachAr().eps] = 100*np.MachAr().eps
+        eigval[eigval < np.MachAr().eps] = 100 * np.MachAr().eps
         if nf > 1:
             loadings = np.matrix(np.dot(eigvec[:, :nf],
                                         np.diag(np.sqrt(eigval[:nf]))))
         else:
             loadings = eigvec[:, 0] * np.sqrt(eigval[0])
-        model = np.dot(loadings,loadings.T)
+        model = np.dot(loadings, loadings.T)
         residual = np.square(s2 - model)
         np.fill_diagonal(residual, 0)
 
         return np.sum(residual)
 
     def _minresgrad(self, psi, s, nf):
-        """
-        Jacobian of function to be minimized in minimum
-        residuals (minres) algorithm
+        """Jacobian of function to be minimized in minimum residuals (minres)
+        algorithm.
 
         Parameters
         ----------
@@ -357,7 +344,6 @@ class FactorAnalysis:
         -------
         jac : array
             jacobian of minresfun
-
         """
 
         load = self._get_loadings(psi, s, nf)
@@ -368,9 +354,8 @@ class FactorAnalysis:
 
     @staticmethod
     def _get_loadings(psi, s, nf):
-        """
-        Estimate matrix of factor loadings
-        based on minimum residuals (minres) algorithm
+        """Estimate matrix of factor loadings based on minimum residuals
+        (minres) algorithm.
 
         Parameters
         ----------
@@ -385,7 +370,6 @@ class FactorAnalysis:
         -------
         load : array
             estimated factor loadings
-
         """
         sc = np.diag(1 / np.sqrt(psi))
         sstar = np.dot(sc, np.dot(s, sc))
@@ -399,8 +383,7 @@ class FactorAnalysis:
         return load
 
     def get_correlations(self, oseries=None):
-        """
-        Method to get correlations of multivariate series
+        """Method to get correlations of multivariate series.
 
         Parameters
         ----------
@@ -411,7 +394,6 @@ class FactorAnalysis:
         -------
         corr : numpy ndarray
             correlation matrix
-
         """
         if oseries is None:
             oseries = self.oseries
@@ -423,7 +405,7 @@ class FactorAnalysis:
         # perform eigenvalue decomposition
         eigval, eigvec = np.linalg.eig(correlation)
         if isinstance(eigval[0], np.complex128):
-            msg = "Metran: Correlation matrix has "+ \
+            msg = "Metran: Correlation matrix has " + \
                   "complex eigenvalues and eigenvectors."
             self.logger.error(msg)
             return

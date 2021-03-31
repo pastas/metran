@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Mar 29 08:47:25 2021
+"""Created on Mon Mar 29 08:47:25 2021.
 
 @author: Wilbert Berendrecht
 """
 
-from KalmanFilterf95 import kfseq
 import numpy as np
+
+from KalmanFilterf95 import kfseq
+
 
 class SPKalmanFilter():
 
@@ -30,7 +31,6 @@ class SPKalmanFilter():
         self.sigmas = None
         self.nobs = None
 
-
     def set_matrices(self, transition_matrix, transition_covariance,
                      observation_matrix, observation_variance):
         self.transition_matrix = transition_matrix
@@ -40,12 +40,12 @@ class SPKalmanFilter():
         self.nstate = self.transition_matrix.shape[0]
 
     def get_mle(self):
-        return (self.nobs * (np.log(2*np.pi) + 1) + np.sum(self.detfs)
+        return (self.nobs * (np.log(2 * np.pi) + 1) + np.sum(self.detfs)
                 + self.nobs * np.log(np.sum(self.sigmas) / self.nobs)
                 )
 
     def get_scale(self):
-        return np.sum(self.sigmas)/self.nobs
+        return np.sum(self.sigmas) / self.nobs
 
     def filter_predict(self, current_state_mean, current_state_covariance):
         """Calculate the mean and covariance of :math:`P(x_{t|t-1})`
@@ -84,9 +84,8 @@ class SPKalmanFilter():
 
     def filter_update(self, t, corrected_state_mean,
                       corrected_state_covariance):
-        """Update a predicted state with a Kalman Filter update
-            using sequential processing (assumption of uncorrelated
-            observation error)
+        """Update a predicted state with a Kalman Filter update using
+        sequential processing (assumption of uncorrelated observation error)
 
         Incorporate observation `observation` from time `t` to turn
         :math:`P(x_{t|t-1})` into :math:`P(x_{t|t})` and to obtain
@@ -137,15 +136,15 @@ class SPKalmanFilter():
 
             dot_statecov_obsmat = np.dot(corrected_state_covariance, obsmat)
             innovation_covariance = (np.dot(obsmat, dot_statecov_obsmat)
-                + self.observation_variance[observation_index])
+                                     + self.observation_variance[observation_index])
 
             kgain = dot_statecov_obsmat / innovation_covariance
 
             corrected_state_covariance = (corrected_state_covariance
-                                          - (np.outer(kgain,kgain)
-                                             *innovation_covariance))
+                                          - (np.outer(kgain, kgain)
+                                             * innovation_covariance))
 
-            corrected_state_mean = corrected_state_mean + kgain*innovation
+            corrected_state_mean = corrected_state_mean + kgain * innovation
 
             sigma = sigma + (innovation**2 / innovation_covariance)
             detf = detf + np.log(innovation_covariance)
@@ -155,9 +154,8 @@ class SPKalmanFilter():
                 sigma, detf)
 
     def initialize(self, oseries):
-        """
-        Initialize sequential processing of the Kalman filter by
-        constructing observation matrices allowing missing values
+        """Initialize sequential processing of the Kalman filter by
+        constructing observation matrices allowing missing values.
 
         Parameters
         ----------
@@ -167,7 +165,6 @@ class SPKalmanFilter():
         Returns
         -------
         None
-
         """
         observations_masked = np.ma.array(oseries,
                                           mask=(~np.isfinite(oseries)))
@@ -188,7 +185,6 @@ class SPKalmanFilter():
                     obsid = int(obsindices[i])
                     self.observations[t, obsid] = observation[obsid]
                     self.observation_indices[t, i] = obsid
-
 
     def run(self, initial_state_mean=None, initial_state_covariance=None,
             warmup=1):
@@ -238,7 +234,7 @@ class SPKalmanFilter():
         else:
             initial_state_covariance = initial_state_covariance
 
-        #initialize Kalman filter states and covariances
+        # initialize Kalman filter states and covariances
         self.filtered_state_means = []
         self.filtered_state_covariances = []
         self.predicted_state_means = []
@@ -260,10 +256,10 @@ class SPKalmanFilter():
             if n_observation > 0:
                 # Kalman filter update step
                 (filtered_state_mean,
-                 filtered_state_covariance,sigma,detf) = (
+                 filtered_state_covariance, sigma, detf) = (
                     self.filter_update(t,
-                        predicted_state_mean, predicted_state_covariance
-                        )
+                                       predicted_state_mean, predicted_state_covariance
+                                       )
                 )
                 # construct list of values used for concentrated loglikelihood
                 sigmas.append(sigma)
@@ -279,7 +275,6 @@ class SPKalmanFilter():
         self.detfs = detfs[warmup:]
         self.sigmas = sigmas[warmup:]
         self.nobs = np.sum(self.observation_count[warmup:])
-
 
     def runf95(self, initial_state_mean=None, initial_state_covariance=None,
                warmup=1):
