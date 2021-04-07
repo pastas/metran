@@ -20,183 +20,7 @@ from statsmodels.stats.moment_helpers import cov2corr
 logger = getLogger(__name__)
 
 
-class BaseSolver:
-    _name = "BaseSolver"
-    __doc__ = """All solver instances inherit from the BaseSolver class.
-
-    Attributes
-    ----------
-    model: pastas.Model instance
-    pcor: pandas.DataFrame
-        Pandas DataFrame with the correlation between the optimized parameters.
-    pcov: pandas.DataFrame
-        Pandas DataFrame with the correlation between the optimized parameters.
-    nfev: int
-        Number of times the model is called during optimization.
-    result: object
-        The object returned by the minimization method that is used. It depends
-        on the solver what is actually returned.
-
-    """
-
-    def __init__(self, ml, pcov=None, nfev=None, obj_func=None, **kwargs):
-        self.ml = ml
-        self.pcov = pcov  # Covariances of the parameters
-        if pcov is None:
-            self.pcor = None  # Correlation between parameters
-        else:
-            self.pcor = self._get_correlations(pcov)
-        self.nfev = nfev  # number of function evaluations
-        self.obj_func = obj_func
-        self.result = None  # Object returned by the optimization method
-
-    def ci_simulation(self, n=1000, alpha=0.05, **kwargs):
-        """Method to calculate the confidence interval for the simulation.
-
-        Returns
-        -------
-
-        Notes
-        -----
-        The confidence interval shows the uncertainty in the simulation due
-        to parameter uncertainty. In other words, there is a 95% probability
-        that the true best-fit line for the observed data lies within the
-        95% confidence interval.
-        """
-        return self._get_confidence_interval(func=self.ml.simulate, n=n,
-                                             alpha=alpha, **kwargs)
-
-    def _get_realizations(self, func, n=None, name=None, **kwargs):
-        """Internal method to obtain n number of parameter realizations."""
-        if name:
-            kwargs["name"] = name
-
-        parameter_sample = self._get_parameter_sample(n=n, name=name)
-        data = {}
-
-        for i, p in enumerate(parameter_sample):
-            data[i] = func(p=p, **kwargs)
-
-        return DataFrame.from_dict(data, orient="columns")
-
-    def _get_confidence_interval(self, func, n=None, name=None, alpha=0.05,
-                                 **kwargs):
-        """Internal method to obtain a confidence interval."""
-        q = [alpha / 2, 1 - alpha / 2]
-        data = self._get_realizations(func=func, n=n, name=name, **kwargs)
-
-        return data.quantile(q=q, axis=1).transpose()
-
-    def _get_parameter_sample(self, name=None, n=None):
-        """Internal method to obtain a parameter sets.
-
-        Parameters
-        ----------
-        n: int, optional
-            Number of random samples drawn from the bivariate normal
-            distribution.
-        name: str, optional
-            Name of the stressmodel or model component to obtain the
-            parameters for.
-
-        Returns
-        -------
-        numpy.ndarray
-            Numpy array with N parameter samples.
-        """
-        p = self.ml.get_parameters(name=name)
-        pcov = self._get_covariance_matrix(name=name)
-
-        if name is None:
-            parameters = self.ml.parameters
-        else:
-            parameters = self.ml.parameters.loc[
-                self.ml.parameters.name == name]
-
-        pmin = parameters.pmin.fillna(-np.inf).values
-        pmax = parameters.pmax.fillna(np.inf).values
-
-        if n is None:
-            # only use parameters that are varied.
-            n = int(10 ** parameters.vary.sum())
-
-        samples = np.zeros((0, p.size))
-
-        # Start truncated multivariate sampling
-        it = 0
-        while samples.shape[0] < n:
-            s = np.random.multivariate_normal(p, pcov, size=(n,),
-                                              check_valid="ignore")
-            accept = s[(np.min(s - pmin, axis=1) >= 0) &
-                       (np.max(s - pmax, axis=1) <= 0)]
-            samples = np.concatenate((samples, accept), axis=0)
-
-            # Make sure there's no endless while loop
-            if it > 10:
-                break
-            else:
-                it += 1
-
-        return samples[:n, :]
-
-    def _get_covariance_matrix(self, name=None):
-        """Internal method to obtain the covariance matrix from the model.
-
-        Parameters
-        ----------
-        name: str, optional
-            Name of the stressmodel or model component to obtain the
-            parameters for.
-
-        Returns
-        -------
-        pcov: pandas.DataFrame
-            Pandas DataFrame with the covariances for the parameters.
-        """
-        if name:
-            index = self.ml.parameters.loc[self.ml.parameters.loc[:,
-                                                                  "name"] == name].index
-        else:
-            index = self.ml.parameters.index
-
-        pcov = self.pcov.reindex(index=index, columns=index).fillna(0)
-
-        return pcov
-
-    @staticmethod
-    def _get_correlations(pcov):
-        """Internal method to obtain the parameter correlations from the
-        covariance matrix.
-
-        Parameters
-        ----------
-        pcov: pandas.DataFrame
-            n x n Pandas DataFrame with the covariances.
-
-        Returns
-        -------
-        pcor: pandas.DataFrame
-            n x n Pandas DataFrame with the correlations.
-        """
-        pcor = pcov.loc[pcov.index, pcov.index].copy()
-
-        for i in pcor.index:
-            for j in pcor.columns:
-                pcor.loc[i, j] = pcov.loc[i, j] / \
-                    np.sqrt(pcov.loc[i, i] * pcov.loc[j, j])
-        return pcor
-
-    def to_dict(self):
-        data = {
-            "name": self._name,
-            "pcov": self.pcov,
-            "nfev": self.nfev,
-            "obj_func": self.obj_func
-        }
-        return data
-
-
-class LmfitSolve(BaseSolver):
+class LmfitSolve():
     _name = "LmfitSolve"
 
     def __init__(self, ml, pcov=None, nfev=None, **kwargs):
@@ -204,6 +28,16 @@ class LmfitSolve(BaseSolver):
 
          This is basically a wrapper around the scipy solvers, adding some
          cool functionality for boundary conditions.
+
+        model: pastas.Model instance
+        pcor: pandas.DataFrame
+            Pandas DataFrame with correlation between optimized parameters.
+        pcov: pandas.DataFrame
+            Pandas DataFrame with correlation between optimized parameters.
+        nfev: int
+            Number of times the model is called during optimization.
+        result: object
+            The object returned by the minimization method that is used.
 
         References
         ----------
@@ -215,7 +49,14 @@ class LmfitSolve(BaseSolver):
         except ImportError:
             msg = "lmfit not installed. Please install lmfit first."
             raise ImportError(msg)
-        BaseSolver.__init__(self, ml=ml, pcov=pcov, nfev=nfev, **kwargs)
+        self.ml = ml
+        self.pcov = pcov  # Covariances of the parameters
+        if pcov is None:
+            self.pcor = None  # Correlation between parameters
+        else:
+            self.pcor = self._get_correlations(pcov)
+        self.nfev = nfev  # number of function evaluations
+        self.result = None  # Object returned by the optimization method
 
     def solve(self, callback=None, method="bfgs", **kwargs):
 
@@ -263,9 +104,7 @@ class LmfitSolve(BaseSolver):
         return success, self.result.params
 
     def objfunction(self, p, callback):
-        kf = self.ml.simulate(p.valuesdict())
-        obj = kf.get_mle()
-
+        obj = self.ml.get_mle(p.valuesdict())
         return obj
 
     def stdcorr(self, optresult, f, fcn_args, epsilon=None, cutoff=True,
@@ -606,3 +445,26 @@ class LmfitSolve(BaseSolver):
         out = B * B.T
 
         return out
+
+    @staticmethod
+    def _get_correlations(pcov):
+        """Internal method to obtain the parameter correlations from the
+        covariance matrix.
+
+        Parameters
+        ----------
+        pcov: pandas.DataFrame
+            n x n Pandas DataFrame with the covariances.
+
+        Returns
+        -------
+        pcor: pandas.DataFrame
+            n x n Pandas DataFrame with the correlations.
+        """
+        pcor = pcov.loc[pcov.index, pcov.index].copy()
+
+        for i in pcor.index:
+            for j in pcor.columns:
+                pcor.loc[i, j] = pcov.loc[i, j] / \
+                    np.sqrt(pcov.loc[i, i] * pcov.loc[j, j])
+        return pcor

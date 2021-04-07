@@ -3,10 +3,8 @@
 from logging import getLogger
 
 import numpy as np
-from pandas import DataFrame, concat
+from pandas import DataFrame, Series, Timedelta, concat
 from pastas.decorators import set_parameter
-from pastas.modelstats import Statistics
-from pastas.plots import Plotting
 from pastas.timeseries import TimeSeries
 from pastas.utils import validate_name
 
@@ -14,6 +12,7 @@ from factoranalysis import FactorAnalysis
 from kalmanfilter import SPKalmanFilter
 from solver import LmfitSolve
 
+logger = getLogger(__name__)
 
 class Metran:
     """Class for the Pastas Metran model.
@@ -25,10 +24,6 @@ class Metran:
         series can be non-equidistant.
     name: str, optional
         String with the name of the model, used in plotting and saving.
-    metadata: dict, optional
-        Dictionary containing metadata of the oseries, passed on the to
-        oseries when creating a pastas TimeSeries object. hence,
-        ml.oseries.metadata will give you the metadata.
 
     Returns
     -------
@@ -43,18 +38,40 @@ class Metran:
     >>> ml = Model(oseries)
     """
 
-    def __init__(self, oseries, name=None):  # , metadata=None):
+    def __init__(self, oseries, name=None):
 
-        self.logger = getLogger(__name__)
+        # Default solve/simulation settings
+        self.settings = {
+            "tmin": None,
+            "tmax": None,
+            "freq": "D",
+            "solver": None,
+            "warmup": 1
+        }
 
-        # Construct the different model components
-        _oseries = []
-        for os in oseries:
-            if isinstance(os, TimeSeries):
-                _oseries.append(os.series)
-            else:
-                _oseries.append(os)
-        oseries = concat(_oseries, axis=1)
+        if isinstance(oseries, (list, tuple)):
+            _oseries = []
+            _names = []
+            for os in oseries:
+                if isinstance(os, TimeSeries):
+                    _oseries.append(os.series)
+                    _names.append(os.name)
+                elif isinstance(os, (Series, DataFrame)):
+                    if isinstance(os, DataFrame):
+                        if os.shape[1] > 1:
+                            logger.error("One or more oseries have DataFrame "
+                                         "with multiple columns")
+                        os = os.squeeze()
+                    _oseries.append(os)
+                    _names.append(os.name)
+            self.snames = _names
+            oseries = concat(_oseries, axis=1)
+        elif isinstance(oseries, DataFrame):
+            self.snames = oseries.columns
+        else:
+            logger.error("Input type should be either a "
+                         "list, tuple, or pandas.DataFrame")
+
         oseries = self.truncate(oseries)
         oseries = oseries.asfreq("D")
         self.oseries = self.standardize(oseries)
@@ -70,15 +87,6 @@ class Metran:
         self.init_kalmanfilter(self.oseries)
         self.set_init_parameters()
 
-        # Default solve/simulation settings
-        self.settings = {
-            "tmin": None,
-            "tmax": None,
-            "freq": "D",
-            "solver": None,
-            "warmup": 1
-        }
-
         # File Information
         # self.file_info = self._get_file_info()
 
@@ -88,10 +96,6 @@ class Metran:
         self.interpolate_simulation = None
         self.fit = None
 
-        # Load other modules
-        self.stats = Statistics(self)
-        self.plots = Plotting(self)
-        self.plot = self.plots.plot  # because we are lazy
 
     @property
     def nparam(self):
@@ -121,14 +125,13 @@ class Metran:
             p = self.get_parameters(initial)
         (nsdf, ncdf) = self.factors.shape
         nstate = nsdf + ncdf
-        transition_matrix = np.zeros((nstate, nstate))
+        transition_matrix = np.zeros((nstate, nstate), dtype=np.float64)
         for n in range(nsdf):
             name = "sdf" + str(n + 1) + "_alpha"
-            transition_matrix[n, n] = 1. - np.exp(-p[name])
+            transition_matrix[n, n] = np.exp(-1 / p[name])
         for n in range(ncdf):
             name = "cdf" + str(n + 1) + "_alpha"
-            transition_matrix[nsdf + n, nsdf + n] = (
-                1. - np.exp(-1 * p[name]))
+            transition_matrix[nsdf + n, nsdf + n] = np.exp(-1 / p[name])
         return transition_matrix
 
     def get_transition_covariance(self, p=None, initial=False):
@@ -136,15 +139,16 @@ class Metran:
             p = self.get_parameters(initial)
         (nsdf, ncdf) = self.factors.shape
         nstate = nsdf + ncdf
-        transition_covariance = np.eye(nstate)
+        transition_covariance = np.eye(nstate, dtype=np.float64)
         for n in range(nsdf):
             name = "sdf" + str(n + 1) + "_alpha"
             transition_covariance[n, n] = (
-                1 - (
-                    1. - np.exp(-1 * p[name]))**2) * self.specificity[n]
+                1 - (np.exp(-1 * (Timedelta(1, self.settings["freq"])
+                                  / Timedelta("1d"))
+                            / p[name]))**2) * self.specificity[n]
         for n in range(ncdf):
             name = "cdf" + str(n+1) + "_q"
-            transition_covariance[nsdf+n, nsdf+n] =p[name]
+            transition_covariance[nsdf+n, nsdf+n] = np.exp(p[name])
             # name = "cdf" + str(n+1) + "_alpha"
             # transition_covariance[nsdf+n, nsdf+n] = (
             #     1 - (
@@ -161,17 +165,16 @@ class Metran:
             p = self.get_parameters(initial)
         (nsdf, ncdf) = self.factors.shape
         nstate = nsdf + ncdf
-        observation_matrix = np.zeros((nsdf, nstate))
+        observation_matrix = np.zeros((nsdf, nstate), dtype=np.float64)
         observation_matrix[:, :nsdf] = np.eye(nsdf)
         for n in range(nsdf):
             for k in range(ncdf):
-                name = "cdf" + str(k + 1) + "_c" + str(n + 1)
-                observation_matrix[n, nsdf + k] = p[name]
+                observation_matrix[n, nsdf + k] = self.factors[n, k]
         return observation_matrix
 
     def get_observation_variance(self):
         (nsdf, _) = self.factors.shape
-        observation_variance = np.zeros(nsdf)
+        observation_variance = np.zeros(nsdf, dtype=np.float64)
         return observation_variance
 
     def get_matrices(self, p):
@@ -182,13 +185,13 @@ class Metran:
                 )
 
     def set_init_parameters(self):
-        pinit_alpha = 3
+        pinit_alpha = 10
         pinit_q = 0.1
         (nsdf, ncdf) = self.factors.shape
 
         for n in range(ncdf):
             self.parameters.loc["cdf" + str(n + 1) + "_alpha"] = (
-                pinit_alpha, 0, 10, True, "cdf")
+                pinit_alpha, 1e-5, None, True, "cdf")
 
         for n in range(ncdf):
             # if n == 0: # and parmulti['r'][n] == 0:
@@ -198,20 +201,15 @@ class Metran:
             #         pinit_q, 0, None, False, "cdf")
             # else:
             self.parameters.loc["cdf" + str(n+1) + "_q"] = (
-                pinit_q, 0, None, True, "cdf")
+                pinit_q, None, None, True, "cdf")
 
         for n in range(nsdf):
             self.parameters.loc["sdf" + str(n + 1) + "_alpha"] = (
-                pinit_alpha, 0, 10, True, "sdf")
+                pinit_alpha, None, None, True, "sdf")
 
         # for n in range(nsdf):
         #     self.parameters.loc["sdf" + str(n+1) + "_q"] = (
         #         pinit_q, 0, None, True, "sdf")
-
-        for n in range(nsdf):
-            for k in range(ncdf):
-                self.parameters.loc["cdf" + str(k + 1) + "_c" + str(n + 1)] = (
-                    self.factors[n, k], None, None, False, "cdf")
 
     @set_parameter
     def _set_initial(self, name, value):
@@ -253,7 +251,7 @@ class Metran:
         """
         self.parameters.loc[name, "vary"] = value
 
-    def simulate(self, p):
+    def get_mle(self, p):
         """Simulate.
 
         Parameters
@@ -264,13 +262,39 @@ class Metran:
 
         Returns
         -------
-        SPKalmanFilter Class
-            Results of Kalmanfilter
+        mle: float
+            Maximum likelihood estimate
         """
         self.kf.set_matrices(*self.get_matrices(p))
-        self.kf.runf95()
+        self.kf.run_filter()
+        mle = self.kf.get_mle()
+        return mle
 
-        return self.kf
+    def get_filtered_state_means(self, p=None):
+        if p is not None:
+            self.kf.set_matrices(*self.get_matrices(p))
+            self.kf.run_filter()
+        nstate = self.kf.filtered_state_means.shape[1]
+        columns = ["state_mean_" + str(i+1) for i in range(nstate)]
+        filtered_state_means = DataFrame(index=self.oseries.index,
+                                         data=self.kf.filtered_state_means,
+                                         columns=columns)
+        return filtered_state_means
+
+    def get_filtered_state_covariances(self, p=None):
+        if p is not None:
+            self.kf.set_matrices(*self.get_matrices(p))
+            self.kf.run_filter()
+        return self.kf.filtered_state_covariances
+
+    def get_filtered_state_variances(self, p=None):
+        if p is not None:
+            self.kf.set_matrices(*self.get_matrices(p))
+            self.kf.run_filter()
+        variances = np.zeros(self.kf.filtered_state_means)
+        for t in range(len(self.filtered_state_means)):
+            variances[t, :] = np.diag(self.filtered_state_covariances)
+        return variances
 
     def get_parameters(self, initial=True):
         """Method to get all parameters from the individual objects.
