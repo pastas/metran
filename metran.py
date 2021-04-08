@@ -74,6 +74,7 @@ class Metran:
 
         oseries = self.truncate(oseries)
         oseries = oseries.asfreq("D")
+        self.nseries = oseries.shape[1]
         self.oseries = self.standardize(oseries)
 
         if name is None:
@@ -103,8 +104,10 @@ class Metran:
 
     def standardize(self, oseries):
         std = oseries.std()
-        self.stdfac = np.array(std.values)
-        return (oseries - oseries.mean()) / std
+        mean = oseries.mean()
+        self.oseries_std = np.array(std.values)
+        self.oseries_mean = np.array(mean.values)
+        return (oseries - mean) / std
 
     def truncate(self, oseries):
         return oseries.dropna(how='all')
@@ -114,45 +117,48 @@ class Metran:
         self.factors = fa.solve()
         self.nfactors = self.factors.shape[1]
         self.specificity = fa.get_specificity()
-        self.cdf_variance = fa.get_eigval_weight()
+        self.communality = fa.get_communality()
+        self.fep = 100 * np.sum(fa.get_eigval_weight()[:self.nfactors])
 
     def init_kalmanfilter(self, oseries):
         self.kf = SPKalmanFilter()
         self.kf.initialize(oseries)
 
+    def _alpha(self, p):
+        a = Timedelta(1, self.settings["freq"]) / Timedelta("1d")
+        return np.exp(-a/p)
+
+    def _dalpha(self, p):
+        a = Timedelta(1, self.settings["freq"]) / Timedelta("1d")
+        return np.exp(-a/p) * a / p**2
+
     def get_transition_matrix(self, p=None, initial=False):
         if p is None:
             p = self.get_parameters(initial)
-        (nsdf, ncdf) = self.factors.shape
-        nstate = nsdf + ncdf
+        nstate = self.nseries + self.nfactors
         transition_matrix = np.zeros((nstate, nstate), dtype=np.float64)
-        for n in range(nsdf):
-            name = "sdf" + str(n + 1) + "_alpha"
-            transition_matrix[n, n] = np.exp(-1 / p[name])
-        for n in range(ncdf):
-            name = "cdf" + str(n + 1) + "_alpha"
-            transition_matrix[nsdf + n, nsdf + n] = np.exp(-1 / p[name])
+        for n in range(self.nseries):
+            name = "sdf" + str(n+1) + "_alpha"
+            transition_matrix[n, n] = self._alpha(p[name])
+        for n in range(self.nfactors):
+            name = "cdf" + str(n+1) + "_alpha"
+            transition_matrix[self.nseries + n,
+                              self.nseries + n] = self._alpha(p[name])
         return transition_matrix
 
     def get_transition_covariance(self, p=None, initial=False):
         if p is None:
             p = self.get_parameters(initial)
-        (nsdf, ncdf) = self.factors.shape
-        nstate = nsdf + ncdf
+        nstate = self.nseries + self.nfactors
         transition_covariance = np.eye(nstate, dtype=np.float64)
-        for n in range(nsdf):
-            name = "sdf" + str(n + 1) + "_alpha"
+        for n in range(self.nseries):
+            name = "sdf" + str(n+1) + "_alpha"
             transition_covariance[n, n] = (
-                1 - (np.exp(-1 * (Timedelta(1, self.settings["freq"])
-                                  / Timedelta("1d"))
-                            / p[name]))**2) * self.specificity[n]
-        for n in range(ncdf):
+                1 - self._alpha(p[name])**2) * self.specificity[n]
+        for n in range(self.nfactors):
             name = "cdf" + str(n+1) + "_q"
-            transition_covariance[nsdf+n, nsdf+n] = np.exp(p[name])
-            # name = "cdf" + str(n+1) + "_alpha"
-            # transition_covariance[nsdf+n, nsdf+n] = (
-            #     1 - (
-            #     1. - np.exp(-1 * p[name]))**2)
+            transition_covariance[self.nseries+n,
+                                  self.nseries+n] = np.exp(p[name])
         return transition_covariance
 
     def get_transition_variance(self, p=None, initial=False):
@@ -163,18 +169,18 @@ class Metran:
     def get_observation_matrix(self, p=None, initial=False):
         if p is None:
             p = self.get_parameters(initial)
-        (nsdf, ncdf) = self.factors.shape
-        nstate = nsdf + ncdf
-        observation_matrix = np.zeros((nsdf, nstate), dtype=np.float64)
-        observation_matrix[:, :nsdf] = np.eye(nsdf)
-        for n in range(nsdf):
-            for k in range(ncdf):
-                observation_matrix[n, nsdf + k] = self.factors[n, k]
+        nstate = self.nseries + self.nfactors
+        observation_matrix = np.zeros((self.nseries, nstate),
+                                      dtype=np.float64)
+        observation_matrix[:, :self.nseries] = np.eye(self.nseries)
+        for n in range(self.nseries):
+            for k in range(self.nfactors):
+                observation_matrix[n, self.nseries+k] = self.factors[n, k]
         return observation_matrix
 
     def get_observation_variance(self):
-        (nsdf, _) = self.factors.shape
-        observation_variance = np.zeros(nsdf, dtype=np.float64)
+        (self.nseries, _) = self.factors.shape
+        observation_variance = np.zeros(self.nseries, dtype=np.float64)
         return observation_variance
 
     def get_matrices(self, p):
@@ -187,13 +193,10 @@ class Metran:
     def set_init_parameters(self):
         pinit_alpha = 10
         pinit_q = 0.1
-        (nsdf, ncdf) = self.factors.shape
-
-        for n in range(ncdf):
+        for n in range(self.nfactors):
             self.parameters.loc["cdf" + str(n + 1) + "_alpha"] = (
                 pinit_alpha, 1e-5, None, True, "cdf")
-
-        for n in range(ncdf):
+        for n in range(self.nfactors):
             # if n == 0: # and parmulti['r'][n] == 0:
             #     # fix parameter to 1 for concentrated likelihood optimization
             #     # only valid if no measurement error R is included
@@ -202,11 +205,9 @@ class Metran:
             # else:
             self.parameters.loc["cdf" + str(n+1) + "_q"] = (
                 pinit_q, None, None, True, "cdf")
-
-        for n in range(nsdf):
+        for n in range(self.nseries):
             self.parameters.loc["sdf" + str(n + 1) + "_alpha"] = (
                 pinit_alpha, None, None, True, "sdf")
-
         # for n in range(nsdf):
         #     self.parameters.loc["sdf" + str(n+1) + "_q"] = (
         #         pinit_q, 0, None, True, "sdf")
@@ -252,18 +253,18 @@ class Metran:
         self.parameters.loc[name, "vary"] = value
 
     def get_mle(self, p):
-        """Simulate.
+        """Run Kalmanfilter and calculate maximum likelihood estimate.
 
         Parameters
         ----------
         p: array_like
             array_like object with the values as floats representing the
-            model parameters. Here, Alpha parameter used by the noisemodel.
+            model parameters.
 
         Returns
         -------
         mle: float
-            Maximum likelihood estimate
+            maximum likelihood estimate
         """
         self.kf.set_matrices(*self.get_matrices(p))
         self.kf.run_filter()
@@ -271,30 +272,75 @@ class Metran:
         return mle
 
     def get_filtered_state_means(self, p=None):
+        """Get filtered state mean (expected value)
+           as calculated by Kalmanfilter.
+
+        Parameters
+        ----------
+        p: array_like (optional)
+            array_like object with the values as floats representing the
+            model parameters.
+
+        Returns
+        -------
+        filtered_state_means: pandas.DataFrame
+            columns with filtered state mean for each time step
+        """
         if p is not None:
             self.kf.set_matrices(*self.get_matrices(p))
             self.kf.run_filter()
         nstate = self.kf.filtered_state_means.shape[1]
-        columns = ["state_mean_" + str(i+1) for i in range(nstate)]
+        columns = ["state_mean_" + str(i) for i in range(nstate)]
         filtered_state_means = DataFrame(index=self.oseries.index,
                                          data=self.kf.filtered_state_means,
                                          columns=columns)
         return filtered_state_means
 
     def get_filtered_state_covariances(self, p=None):
+        """Get filtered state covariance as calculated by Kalmanfilter.
+
+        Parameters
+        ----------
+        p: array_like (optional)
+            array_like object with the values as floats representing the
+            model parameters.
+
+        Returns
+        -------
+        filtered_state_covariances: numpy.ndarray (3 dimensional)
+            filtered state covariance matrix for each time step
+        """
         if p is not None:
             self.kf.set_matrices(*self.get_matrices(p))
             self.kf.run_filter()
         return self.kf.filtered_state_covariances
 
     def get_filtered_state_variances(self, p=None):
+        """Get filtered state variance as calculated by Kalmanfilter.
+
+        Parameters
+        ----------
+        p: array_like (optional)
+            array_like object with the values as floats representing the
+            model parameters.
+
+        Returns
+        -------
+        filtered_state_variances: pandas.DataFrame
+            columns with filtered state variance for each time step
+        """
         if p is not None:
             self.kf.set_matrices(*self.get_matrices(p))
             self.kf.run_filter()
         variances = np.zeros(self.kf.filtered_state_means)
         for t in range(len(self.filtered_state_means)):
             variances[t, :] = np.diag(self.filtered_state_covariances)
-        return variances
+        nstate = variances.shape[1]
+        columns = ["state_mean_" + str(i) for i in range(nstate)]
+        filtered_state_variances = DataFrame(index=self.oseries.index,
+                                         data=variances,
+                                         columns=columns)
+        return filtered_state_variances
 
     def get_parameters(self, initial=True):
         """Method to get all parameters from the individual objects.
@@ -349,18 +395,17 @@ class Metran:
         return params
 
     def scale_parameters(self, params):
-        dim = self.factors.shape[0]
-        for n in range(dim):
+        for n in range(self.nseries):
             name = 'sdf' + str(n + 1) + '_q'
             params[name] = self._scale_parameter(params[name],
-                                                 self.stdfac[n]**2)
+                                                 self.oseries_std[n]**2)
             name = 'r' + str(n + 1)
             params[name] = self._scale_parameter(params[name],
-                                                 self.stdfac[n]**2)
+                                                 self.oseries_std[n]**2)
             for k in range(self.nfactors):
                 name = 'cdf' + str(k + 1) + '_c' + str(n + 1)
                 params[name] = self._scale_parameter(params[name],
-                                                     self.stdfac[n])
+                                                     self.oseries_std[n])
         return params
 
     def solve(self, solver=None, report=True, **kwargs):
@@ -421,7 +466,8 @@ class Metran:
                 output = report
             else:
                 output = "full"
-            print(self.fit_report(output=output))
+            print(self.fit_report(output=output) + "\n")
+            print(self.metran_report(output=output))
 
     def fit_report(self, output="full"):
         """Method that reports on the fit after a model is optimized.
@@ -489,7 +535,7 @@ class Metran:
         w = max(width - 45, 0)
         for (val1, val2), (val3, val4) in zip(model.items(), fit.items()):
             val4 = string.format(val4, fill=' ', align='>', width=w)
-            basic += "{:<8} {:<22} {:<12} {:}\n".format(val1, val2, val3, val4)
+            basic += "{:<8} {:<16} {:<7} {:}\n".format(val1, val2, val3, val4)
 
         # Create the parameters block
         parameters = "\nParameters ({n_param} were optimized)\n{line}\n" \
@@ -520,5 +566,98 @@ class Metran:
         report = "{header}{basic}{parameters}{correlations}".format(
             header=header, basic=basic, parameters=parameters,
             correlations=correlations)
+
+        return report
+
+    def metran_report(self, output="full"):
+        """Method that reports on the metran model parameters.
+
+        Parameters
+        ----------
+        output: str, optional
+            If any other value than "full" is provided, the parameter
+            correlations will be removed from the output.
+
+        Returns
+        -------
+        report: str
+            String with the report.
+
+        Examples
+        --------
+        This method is called by the solve method if report=True, but can
+        also be called on its own::
+
+        >>> print(ml.metran_report)
+        """
+
+        model = {
+            "nfct": str(self.nfactors),
+            "fep": "{:.2f}%".format(self.fep)
+        }
+
+        phi = np.diag(self.get_transition_matrix())
+        q = self.get_transition_variance()
+        names = ["sdf" + str(i+1) for i in range(self.nseries)]
+        names.extend(["cdf" + str(i+1) for i in range(self.nfactors)])
+        transition = DataFrame(np.array([phi, q]).T,
+                               index=names,
+                               columns=["phi", "q"])
+
+        gamma = self.factors
+        names = ["cdf" + str(i+1) for i in range(self.nfactors)]
+        observation = DataFrame(gamma,
+                                index=self.oseries.columns,
+                                columns=names)
+        observation.loc[:, "scale"] = self.oseries_std
+        observation.loc[:, "mean"] = self.oseries_mean
+
+        communality = Series(self.communality,
+                             index=self.oseries.columns,
+                             name="")
+        communality = communality.apply("{:.2%}".format).to_frame()
+
+        # Determine the width of the fit_report based on the parameters
+        width = max(len(transition.__str__().split("\n")[1]),
+                    len(observation.__str__().split("\n")[1]), 44)
+        string = "{:{fill}{align}{width}}"
+
+        # # Create the first header with results factor analysis
+        w = max(width - 43, 0)
+        header = "Metran report {name:<14}{string}Factor Analysis\n" \
+                  "{line}\n".format(
+                      name=self.name[:14],
+                      string=string.format("", fill=' ', align='>', width=w),
+                      line=string.format("", fill='=', align='>', width=width))
+
+        factors = ""
+        for (val1, val2) in model.items():
+            factors += "{:<8} {:<22}\n".format(val1, val2)
+
+        # Create the transition block
+        transition = "\nState parameters\n{line}\n" \
+                      "{transition}\n".format(
+                          line=string.format(
+                              "", fill='=', align='>', width=width),
+                          transition=transition)
+
+        # Create the observation block
+        observation = "\nObservation parameters\n{line}\n" \
+                      "{observation}\n".format(
+                          line=string.format(
+                              "", fill='=', align='>', width=width),
+                          observation=observation)
+
+        # Create the communality block
+        communality = "\nCommunality\n{line}\n" \
+                      "{communality}\n".format(
+                          line=string.format(
+                              "", fill='=', align='>', width=width),
+                          communality=communality)
+
+        report = "{header}{factors}{communality}{transition}" \
+            "{observation}".format(
+            header=header, factors=factors, communality=communality,
+            transition=transition, observation=observation)
 
         return report

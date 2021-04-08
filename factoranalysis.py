@@ -36,11 +36,14 @@ class FactorAnalysis:
         self.maxfactors = maxfactors
 
     def get_specificity(self):
-        specificity = []
+        return [1 - c for c in self.get_communality()]
+
+    def get_communality(self):
+        communality = []
         dim = self.factors.shape[0]
         for n in range(dim):
-            specificity.append(1. - np.sum(np.square(self.factors[n, :])))
-        return specificity
+            communality.append(np.sum(np.square(self.factors[n, :])))
+        return communality
 
     def get_eigval_weight(self):
         return self.eigval / np.sum(self.eigval)
