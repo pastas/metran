@@ -118,6 +118,8 @@ def seqkalmanfilter_np(observations, transition_matrix, transition_covariance,
     # initialize Kalman filter states and covariances
     filtered_state_means = []
     filtered_state_covariances = []
+    predicted_state_means = []
+    predicted_state_covariances = []
 
     for t in range(n_timesteps):
         # Kalman filter prediction step
@@ -125,6 +127,8 @@ def seqkalmanfilter_np(observations, transition_matrix, transition_covariance,
             filter_predict(filtered_state_mean, filtered_state_covariance,
                            transition_matrix, transition_covariance)
         )
+        predicted_state_means.append(predicted_state_mean)
+        predicted_state_covariances.append(predicted_state_covariance)
 
         if observation_count[t] > 0:
             # Kalman filter update step
@@ -147,8 +151,11 @@ def seqkalmanfilter_np(observations, transition_matrix, transition_covariance,
         filtered_state_means.append(filtered_state_mean)
         filtered_state_covariances.append(filtered_state_covariance)
 
-    return (sigmas, detfs, len(sigmas), filtered_state_means,
-            filtered_state_covariances)
+    return (sigmas, detfs, len(sigmas),
+            filtered_state_means,
+            filtered_state_covariances,
+            predicted_state_means,
+            predicted_state_covariances)
 
 @njit('( float64[:,:], float64[:,:], float64[:,:], \
       float64[:,:], float64[:], \
@@ -169,6 +176,10 @@ def seqkalmanfilter(observations, transition_matrix, transition_covariance,
                                     dtype=np.float64)
     filtered_state_covariances = np.zeros((n_timesteps, dim, dim),
                                           dtype=np.float64)
+    predicted_state_means = np.zeros((n_timesteps, dim),
+                                    dtype=np.float64)
+    predicted_state_covariances = np.zeros((n_timesteps, dim, dim),
+                                          dtype=np.float64)
     sigmacount = 0
 
     for t in range(n_timesteps):
@@ -188,6 +199,8 @@ def seqkalmanfilter(observations, transition_matrix, transition_covariance,
                    * transition_matrix[c, c]
                    + transition_covariance[r, c]
                    )
+        predicted_state_means[t] = predicted_state_mean
+        predicted_state_covariances[t] = predicted_state_covariance
 
         if observation_count[t] > 0:
             sigma = 0.
@@ -245,8 +258,88 @@ def seqkalmanfilter(observations, transition_matrix, transition_covariance,
         filtered_state_means[t] = filtered_state_mean
         filtered_state_covariances[t] = filtered_state_covariance
 
-    return (sigmas, detfs, sigmacount, filtered_state_means,
-            filtered_state_covariances)
+    return (sigmas, detfs, sigmacount,
+            filtered_state_means,
+            filtered_state_covariances,
+            predicted_state_means,
+            predicted_state_covariances)
+
+def kalmansmoother(filtered_state_means, filtered_state_covariances,
+                   predicted_state_means, predicted_state_covariances,
+                   transition_matrix):
+    """
+    Apply the Kalman Smoother
+
+    Estimate the hidden state at time for each time step given all
+    observations.
+
+    Parameters
+    ----------
+    filtered_state_means : list
+        `filtered_state_means[t]` = mean state estimate for time t given
+        observations from times [0...t]
+    filtered_state_covariances : list
+        `filtered_state_covariances[t]` = covariance of state estimate for time
+        t given observations from times [0...t]
+    predicted_state_means : list
+        `predicted_state_means[t]` = mean state estimate for time t given
+        observations from times [0...t-1]
+    predicted_state_covariances : list
+        `predicted_state_covariances[t]` = covariance of state estimate for
+        time t given observations from times [0...t-1]
+    transition_matrix : ndarray
+        state transition matrix from time t-1 to t
+
+    Returns
+    -------
+    smoothed_state_means : [n_timesteps, n_dim_state]
+        mean of hidden state distributions for times [0...n_timesteps-1] given
+        all observations
+    smoothed_state_covariances : [n_timesteps, n_dim_state, n_dim_state] array
+        covariance matrix of hidden state distributions for times
+        [0...n_timesteps-1] given all observations
+    """
+
+    n_timesteps = len(filtered_state_means)
+    n_state = len(filtered_state_means[0])
+
+    smoothed_state_means = np.zeros((n_timesteps, n_state))
+    smoothed_state_covariances = np.zeros((n_timesteps, n_state,
+                                                n_state))
+
+    kalman_smoothing_gains = np.zeros((n_timesteps - 1, n_state,
+                                       n_state))
+
+    smoothed_state_means[-1] = filtered_state_means[-1]
+    smoothed_state_covariances[-1] = filtered_state_covariances[-1]
+
+    for t in reversed(range(n_timesteps - 1)):
+        try:
+            psc_inv = np.linalg.pinv(predicted_state_covariances[t+1])
+        except:
+            psc_inv = np.linalg.inv(predicted_state_covariances[t+1])
+        kalman_smoothing_gains[t] = (
+            np.dot(filtered_state_covariances[t],
+                   np.dot(transition_matrix.T, psc_inv))
+            )
+        smoothed_state_means[t] = (filtered_state_means[t]
+            + np.dot(kalman_smoothing_gains[t],
+                     (smoothed_state_means[t+1]
+                      - predicted_state_means[t+1]
+                      )
+                     )
+            )
+        smoothed_state_covariances[t] = (
+            filtered_state_covariances[t]
+            + np.dot(kalman_smoothing_gains[t],
+                     np.dot((smoothed_state_covariances[t+1]
+                             - predicted_state_covariances[t+1]),
+                            kalman_smoothing_gains[t].T
+                            )
+                     )
+            )
+
+    return (smoothed_state_means, smoothed_state_covariances)
 
 
 class SPKalmanFilter():
@@ -259,6 +352,8 @@ class SPKalmanFilter():
         self.filtered_state_covariances = None
         self.predicted_state_means = None
         self.predicted_state_covariances = None
+        self.smoothed_state_means = None
+        self.smoothed_state_covariances = None
         self.detfs = None
         self.sigmas = None
         self.nobs = None
@@ -296,149 +391,24 @@ class SPKalmanFilter():
     def get_scale(self):
         return np.sum(self.sigmas) / self.nobs
 
-    def get_smoothed_states_ci(self):
-        if self.smoothed_states_mean is None:
-            self.calculate_smoothed()
-        ci_upper = self.smoothed_states_mean + 1.96 * self.smoothed_states_std
-        ci_lower = self.smoothed_states_mean - 1.96 * self.smoothed_states_std
-        ci = DataFrame(data=[ci_lower, ci_upper],
-                       index=self.smoothed_states_mean.index,
-                       columns=['lower', 'upper'])
-        return ci
-
-    def calculate_smoothed(self):
-
-        """
-        Get smoothed state estimate and confidence interval using the Kalman Smoother
-
-        Parameters
-        ----------
-        residuals : pandas DataFrame
-            residuals from univariate modelruns
-        transition_matrix : array [n_dim_state, n_dim_state]
-            transition matrix defined in :func:`setpar`
-        transition_covariance : array [n_dim_state, n_dim_state]
-            transition covariance matrix defined in :func:`setpar`
-        observation_matrix : array [n_dim_obs, n_dim_state]
-            observation matrix defined in :func:`construct_observation_matrices`
-        observation_variance : array [n_dim_obs, n_dim_obs]
-            observation covariance matrix defined in :func:`construct_observation_matrices`
-        parmulti : dictionary
-            initial parameter definition
-
-        Returns
-        -------
-        smoothed : dictionary
-            smoothed factors, smoothed factors projected on observed time series, standard deviations
-        """
-
-
-        # run Kalman filter to get filtered state estimates and covariances
-        self.run_filter()
-        # run Kalman smoother to get smoothed state estimates and covariances
-        smoothed_state_means, smoothed_state_covariances = self._run_smoother()
-        dfindex=self.oseries_index
-
-        # means = np.vstack(smoothed_state_means[i] for i in range(self.nstate))
-        with np.errstate(invalid='ignore'):
-            std = np.vstack(np.sqrt(np.diag(smoothed_state_covariances[i]))
-                            for i in range(self.nstate))
-        self.smoothed_states_mean = DataFrame(smoothed_state_means,
-                                              index=self.oseries_index)
-        self.smoothed_states_std = DataFrame(std, index=self.oseries_index)
-
-        _oseries_smoothed_means = []
-        _oseries_smoothed_std = []
-        for t in range(len(smoothed_state_means)):
-            _oseries_smoothed_means.append(np.dot(self.observation_matrix,
-                                                  smoothed_state_means[t]))
-            var = np.diag(np.dot(self.observation_matrix,
-                                 np.dot(smoothed_state_covariances[t],
-                                        np.transpose(self.observation_matrix)
-                                        )
+    def get_projected(self, observation_matrix, method="filter"):
+        if method == "smoother":
+            means = self.smoothed_state_means
+            covariances = self.smoothed_state_covariances
+        else:
+            means = self.filtered_state_means
+            covariances = self.filtered_state_covariances
+        projected_means = []
+        projected_variances = []
+        for t in range(len(means)):
+            projected_means.append(np.dot(observation_matrix, means[t]))
+            var = np.diag(np.dot(observation_matrix,
+                                 np.dot(covariances[t], observation_matrix.T)
                                  )
                           )
-            _oseries_smoothed_std.append(np.sqrt(np.maximum(var, 0)))
-
-        self.oseries_smoothed_means = DataFrame(_oseries_smoothed_means,
-                                                index=dfindex)
-        self.oseries_smoothed_std = DataFrame(_oseries_smoothed_std,
-                                              index=dfindex)
-
-    def _run_smoother(self):
-        """
-        Apply the Kalman Smoother
-
-        Estimate the hidden state at time for each time step given all
-        observations.
-
-        Parameters
-        ----------
-        updated_state_means : list [n_timesteps]
-            `updated_state_means[t]` = mean state estimate for time t given
-            observations from times [0...t]
-        updated_state_covariances : list [n_timesteps]
-            `updated_state_covariances[t]` = covariance of state estimate for time
-            t given observations from times [0...t]
-        predicted_state_means : list [n_timesteps]
-            `predicted_state_means[t]` = mean state estimate for time t given
-            observations from times [0...t-1]
-        predicted_state_covariances : list [n_timesteps]
-            `predicted_state_covariances[t]` = covariance of state estimate for
-            time t given observations from times [0...t-1]
-
-        Returns
-        -------
-        smoothed_state_means : [n_timesteps, n_dim_state]
-            mean of hidden state distributions for times [0...n_timesteps-1] given
-            all observations
-        smoothed_state_covariances : [n_timesteps, n_dim_state, n_dim_state] array
-            covariance matrix of hidden state distributions for times
-            [0...n_timesteps-1] given all observations
-        """
-
-        n_timesteps = len(self.filtered_state_means)
-
-        smoothed_state_means = np.zeros((n_timesteps, self.nstate))
-        smoothed_state_covariances = np.zeros((n_timesteps, self.nstate,
-                                                    self.nstate))
-
-        kalman_smoothing_gains = np.zeros((n_timesteps - 1, self.nstate,
-                                           self.nstate))
-
-        smoothed_state_means[-1] = self.filtered_state_means[-1]
-        smoothed_state_covariances[-1] = self.filter_state_covariances[-1]
-
-        for t in reversed(range(n_timesteps - 1)):
-            try:
-                psc_inv = np.linalg.pinv(
-                               self.predicted_state_covariances[t+1])
-            except:
-                psc_inv = np.linalg.inv(
-                               self.predicted_state_covariances[t+1])
-            kalman_smoothing_gains[t] = (
-                np.dot(self.filtered_state_covariances[t],
-                       np.dot(self.transition_matrix.T, psc_inv))
-                )
-
-            smoothed_state_means[t] = (self.filtered_state_means[t]
-                + np.dot(kalman_smoothing_gains[t],
-                         (smoothed_state_means[t+1]
-                          - self.predicted_state_means[t+1]
-                          )
-                         )
-            )
-            smoothed_state_covariances[t] = (
-                self.filtered_state_covariances[t]
-                + np.dot(kalman_smoothing_gains[t],
-                         np.dot((smoothed_state_covariances[t+1]
-                                 - self.predicted_state_covariances[t+1]),
-                                kalman_smoothing_gains[t].T
-                                )
-                         )
-            )
-
-        return smoothed_state_means, smoothed_state_covariances
+            # prevent variance to become less than 0
+            projected_variances.append(np.maximum(var, 0))
+        return (projected_means, projected_variances)
 
     def initialize(self, oseries):
         """Initialize sequential processing of the Kalman filter by
@@ -473,6 +443,25 @@ class SPKalmanFilter():
                     obsid = int(obsindices[i])
                     self.observations[t, obsid] = observation[obsid]
                     self.observation_indices[t, i] = obsid
+
+    def run_smoother(self):
+        """Calculate smoothed state and projected estimates
+           (both mean and variance) using the Kalman smoother.
+        """
+        # run Kalman filter to get filtered state estimates and covariances
+        self.run_filter()
+        # run Kalman smoother to get smoothed state estimates and covariances
+        (smoothed_state_means,
+         smoothed_state_covariances) = \
+            kalmansmoother(self.filtered_state_means,
+                           self.filtered_state_covariances,
+                           self.predicted_state_means,
+                           self.predicted_state_covariances,
+                           self.transition_matrix
+                           )
+
+        self.smoothed_state_means = smoothed_state_means
+        self.smoothed_state_covariances = smoothed_state_covariances
 
     def run_filter(self, initial_state_mean=None,
                    initial_state_covariance=None,
@@ -516,7 +505,9 @@ class SPKalmanFilter():
         # Kalman filter
         (sigmas, detfs, sigmacount,
          filtered_state_means,
-         filtered_state_covariances) = \
+         filtered_state_covariances,
+         predicted_state_means,
+         predicted_state_covariances) = \
             self.filtermethod(self.observations,
                               self.transition_matrix,
                               self.transition_covariance,
@@ -525,9 +516,12 @@ class SPKalmanFilter():
                               self.observation_indices,
                               self.observation_count,
                               initial_state_mean,
-                              initial_state_covariance)
+                              initial_state_covariance
+                              )
 
         self.sigmas = sigmas[:sigmacount]
         self.detfs = detfs[:sigmacount]
         self.filtered_state_means = filtered_state_means
         self.filtered_state_covariances = filtered_state_covariances
+        self.predicted_state_means = predicted_state_means
+        self.predicted_state_covariances = predicted_state_covariances

@@ -124,11 +124,11 @@ class FactorAnalysis:
         ----------
         phi : 2-dimensional array [nvar, nfac]
             eigenvectors to be rotated
-        gamma : float
-            coefficient for rotation (optional);
-            varimax: gamma = 1;
-            quartimax: gamma = 0;
-            equamax: gamma = nfac/2;
+        gamma : float, optional
+            coefficient for rotation
+            varimax: gamma = 1
+            quartimax: gamma = 0
+            equamax: gamma = nfac/2
             parsimax: gamma = nvar(nfac - 1)/(nvar + nfac - 2)
         maxiter : integer
             maximum number of iterations

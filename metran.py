@@ -19,23 +19,22 @@ class Metran:
 
     Parameters
     ----------
-    oseries: list of pandas.Series or pastas.TimeSeries
-        list of pandas Series objects containing the time series. The
-        series can be non-equidistant.
+    oseries: pandas.DataFrame, list of pandas.Series or pastas.TimeSeries
+        Time series to be analyzed. The series can be non-equidistant.
     name: str, optional
         String with the name of the model, used in plotting and saving.
 
     Returns
     -------
-    ml: pastas.metran.Metran
+    mt: pastas.metran.Metran
         Pastas Metran instance.
 
     Examples
     --------
-    A minimal working example of the Model class is shown below:
+    A minimal working example of the Metran class is shown below:
 
     >>> oseries = pd.Series([1,2,1], index=pd.to_datetime(range(3), unit="D"))
-    >>> ml = Model(oseries)
+    >>> mt = Metran(oseries)
     """
 
     def __init__(self, oseries, name=None):
@@ -86,6 +85,8 @@ class Metran:
 
         self.get_factoranalysis(self.oseries)
         self.init_kalmanfilter(self.oseries)
+        self.nstate = self.nseries + self.nfactors
+
         self.set_init_parameters()
 
         # File Information
@@ -115,6 +116,7 @@ class Metran:
     def get_factoranalysis(self, oseries):
         fa = FactorAnalysis(oseries)
         self.factors = fa.solve()
+        self.eigval = fa.eigval
         self.nfactors = self.factors.shape[1]
         self.specificity = fa.get_specificity()
         self.communality = fa.get_communality()
@@ -124,7 +126,7 @@ class Metran:
         self.kf = SPKalmanFilter()
         self.kf.initialize(oseries)
 
-    def _alpha(self, p):
+    def _phi(self, p):
         a = Timedelta(1, self.settings["freq"]) / Timedelta("1d")
         return np.exp(-a/p)
 
@@ -135,30 +137,29 @@ class Metran:
     def get_transition_matrix(self, p=None, initial=False):
         if p is None:
             p = self.get_parameters(initial)
-        nstate = self.nseries + self.nfactors
-        transition_matrix = np.zeros((nstate, nstate), dtype=np.float64)
+        transition_matrix = np.zeros((self.nstate, self.nstate),
+                                     dtype=np.float64)
         for n in range(self.nseries):
             name = "sdf" + str(n+1) + "_alpha"
-            transition_matrix[n, n] = self._alpha(p[name])
+            transition_matrix[n, n] = self._phi(p[name])
         for n in range(self.nfactors):
             name = "cdf" + str(n+1) + "_alpha"
             transition_matrix[self.nseries + n,
-                              self.nseries + n] = self._alpha(p[name])
+                              self.nseries + n] = self._phi(p[name])
         return transition_matrix
 
     def get_transition_covariance(self, p=None, initial=False):
         if p is None:
             p = self.get_parameters(initial)
-        nstate = self.nseries + self.nfactors
-        transition_covariance = np.eye(nstate, dtype=np.float64)
+        transition_covariance = np.eye(self.nstate, dtype=np.float64)
         for n in range(self.nseries):
             name = "sdf" + str(n+1) + "_alpha"
             transition_covariance[n, n] = (
-                1 - self._alpha(p[name])**2) * self.specificity[n]
+                1 - self._phi(p[name])**2) * self.specificity[n]
         for n in range(self.nfactors):
-            name = "cdf" + str(n+1) + "_q"
+            name = "cdf" + str(n+1) + "_alpha"
             transition_covariance[self.nseries+n,
-                                  self.nseries+n] = np.exp(p[name])
+                                  self.nseries+n] = (1 - self._phi(p[name])**2)
         return transition_covariance
 
     def get_transition_variance(self, p=None, initial=False):
@@ -169,8 +170,7 @@ class Metran:
     def get_observation_matrix(self, p=None, initial=False):
         if p is None:
             p = self.get_parameters(initial)
-        nstate = self.nseries + self.nfactors
-        observation_matrix = np.zeros((self.nseries, nstate),
+        observation_matrix = np.zeros((self.nseries, self.nstate),
                                       dtype=np.float64)
         observation_matrix[:, :self.nseries] = np.eye(self.nseries)
         for n in range(self.nseries):
@@ -192,25 +192,12 @@ class Metran:
 
     def set_init_parameters(self):
         pinit_alpha = 10
-        pinit_q = 0.1
         for n in range(self.nfactors):
             self.parameters.loc["cdf" + str(n + 1) + "_alpha"] = (
                 pinit_alpha, 1e-5, None, True, "cdf")
-        for n in range(self.nfactors):
-            # if n == 0: # and parmulti['r'][n] == 0:
-            #     # fix parameter to 1 for concentrated likelihood optimization
-            #     # only valid if no measurement error R is included
-            #     self.parameters.loc["cdf" + str(n+1) + "_q"] = (
-            #         pinit_q, 0, None, False, "cdf")
-            # else:
-            self.parameters.loc["cdf" + str(n+1) + "_q"] = (
-                pinit_q, None, None, True, "cdf")
         for n in range(self.nseries):
             self.parameters.loc["sdf" + str(n + 1) + "_alpha"] = (
                 pinit_alpha, None, None, True, "sdf")
-        # for n in range(nsdf):
-        #     self.parameters.loc["sdf" + str(n+1) + "_q"] = (
-        #         pinit_q, 0, None, True, "sdf")
 
     @set_parameter
     def _set_initial(self, name, value):
@@ -271,13 +258,101 @@ class Metran:
         mle = self.kf.get_mle()
         return mle
 
+    def get_state_means(self, p=None):
+        self._run_smoother(p)
+        columns = ["state" + str(i) for i in range(self.nstate)]
+        state_means = DataFrame(self.kf.smoothed_state_means,
+                                index=self.oseries.index,
+                                columns=columns)
+        state_means.name = "state_means"
+        return state_means
+
+    def get_state_variances(self, p=None):
+        self._run_smoother(p)
+        with np.errstate(invalid='ignore'):
+            n_timesteps = self.kf.smoothed_state_covariances.shape[0]
+            var = np.vstack([np.diag(self.kf.smoothed_state_covariances[i])
+                            for i in range(n_timesteps)])
+        columns = ["state" + str(i) for i in range(self.nstate)]
+        state_variances = DataFrame(var, index=self.oseries.index,
+                                    columns=columns)
+        state_variances.name = "state_variances"
+        return state_variances
+
+    def get_projected_means(self, p=None, standardized=False):
+        self._run_smoother(p)
+        if standardized:
+            observation_matrix = self.observation_matrix
+        else:
+            observation_matrix = self.get_scaled_observation_matrix()
+        (smoothed_projected_means, _) = \
+            self.kf.get_projected(observation_matrix, method="smoothed")
+        projected_means = \
+            DataFrame(smoothed_projected_means,
+                      index=self.oseries.index,
+                      columns=self.oseries.columns)
+        projected_means.name="projected_means"
+        return projected_means
+
+    def get_projected_variances(self, p=None, standardized=False):
+        self._run_smoother(p)
+        if standardized:
+            observation_matrix = self.observation_matrix
+        else:
+            observation_matrix = self.get_scaled_observation_matrix()
+        (_, smoothed_projected_variances) = \
+            self.kf.get_projected(observation_matrix, method="smoothed")
+        projected_variances = \
+            DataFrame(smoothed_projected_variances,
+                      index=self.oseries.index,
+                      columns=self.oseries.columns)
+        projected_variances.name="projected_variances"
+        return projected_variances
+
+    def get_state(self, i, ci=True, p=None):
+        self._run_smoother(p)
+        if i < 0 or i >= self.nstate:
+            self.logger.error("Value of i must be >=0 and <" + self.nstate)
+        df = self.get_state_means(p).iloc[:, i]
+        if ci:
+            variances = self.get_state_variances(p).iloc[:, i]
+            iv = 1.96 * np.sqrt(variances)
+            df = concat([df, df - iv, df + iv], axis=1)
+            df.columns = ['mean', 'lower', 'upper']
+        return df
+
+    def get_projection(self, name, ci=True, p=None):
+        self._run_smoother(p)
+        means = self.get_projected_means(p)
+        if name not in means.columns:
+            self.logger.error("Unknown name: " + name)
+        means = means.loc[:, name]
+        if ci:
+            variances = self.get_projected_variances(p).loc[:, name]
+            iv = 1.96 * np.sqrt(variances)
+            df = concat([means, means - iv, means + iv], axis=1)
+            df.columns = ['mean', 'lower', 'upper']
+        return df
+
+    def _run_smoother(self, p=None):
+        if p is not None:
+            self.kf.set_matrices(*self.get_matrices(p))
+            self.kf.run_smoother()
+        elif self.kf.smoothed_state_means is None:
+            self.kf.run_smoother()
+
+    def _run_filter(self, p=None):
+        if p is not None:
+            self.kf.set_matrices(*self.get_matrices(p))
+            self.kf.run_filter()
+
     def get_filtered_state_means(self, p=None):
         """Get filtered state mean (expected value)
            as calculated by Kalmanfilter.
 
         Parameters
         ----------
-        p: array_like (optional)
+        p: array_like, optional
             array_like object with the values as floats representing the
             model parameters.
 
@@ -286,11 +361,8 @@ class Metran:
         filtered_state_means: pandas.DataFrame
             columns with filtered state mean for each time step
         """
-        if p is not None:
-            self.kf.set_matrices(*self.get_matrices(p))
-            self.kf.run_filter()
-        nstate = self.kf.filtered_state_means.shape[1]
-        columns = ["state_mean_" + str(i) for i in range(nstate)]
+        self._run_filter(p)
+        columns = ["state" + str(i) for i in range(self.nstate)]
         filtered_state_means = DataFrame(index=self.oseries.index,
                                          data=self.kf.filtered_state_means,
                                          columns=columns)
@@ -301,7 +373,7 @@ class Metran:
 
         Parameters
         ----------
-        p: array_like (optional)
+        p: array_like, optional
             array_like object with the values as floats representing the
             model parameters.
 
@@ -310,9 +382,7 @@ class Metran:
         filtered_state_covariances: numpy.ndarray (3 dimensional)
             filtered state covariance matrix for each time step
         """
-        if p is not None:
-            self.kf.set_matrices(*self.get_matrices(p))
-            self.kf.run_filter()
+        self._run_filter(p)
         return self.kf.filtered_state_covariances
 
     def get_filtered_state_variances(self, p=None):
@@ -320,7 +390,7 @@ class Metran:
 
         Parameters
         ----------
-        p: array_like (optional)
+        p: array_like, optional
             array_like object with the values as floats representing the
             model parameters.
 
@@ -329,14 +399,11 @@ class Metran:
         filtered_state_variances: pandas.DataFrame
             columns with filtered state variance for each time step
         """
-        if p is not None:
-            self.kf.set_matrices(*self.get_matrices(p))
-            self.kf.run_filter()
+        self._run_filter(p)
         variances = np.zeros(self.kf.filtered_state_means)
         for t in range(len(self.filtered_state_means)):
             variances[t, :] = np.diag(self.filtered_state_covariances)
-        nstate = variances.shape[1]
-        columns = ["state_mean_" + str(i) for i in range(nstate)]
+        columns = ["state" + str(i) for i in range(self.nstate)]
         filtered_state_variances = DataFrame(index=self.oseries.index,
                                          data=variances,
                                          columns=columns)
@@ -363,50 +430,21 @@ class Metran:
 
         return parameters
 
-    @staticmethod
-    def _scale_parameter(p, fact):
-        p.value = fact * p.value
-        p.init_value = fact * p.init_value
-        if p.stderr is not None:
-            p.stderr = fact * p.stderr
-        return p
-
-    def scale_covariances(self, params, fact):
-        """Rescale optimized parameters and associated standard deviations.
-
-        Parameters
-        ----------
-        result : class Parameters(OrderedDict)
-            parameter results
-        fact : float
-            scaling factor
+    def get_scaled_observation_matrix(self):
+        """Method scale observation matrix by standard deviations of oseries.
 
         Returns
         -------
-        result : class Parameters(OrderedDict)
-            scaled parameter results
+        observation_matrix: numpy.ndarray
+            scaled observation matrix
         """
-
-        for name in params:
-            if name.endswith('_q'):
-                params[name] = self._scale_parameter(
-                    params[name], fact)
-
-        return params
-
-    def scale_parameters(self, params):
-        for n in range(self.nseries):
-            name = 'sdf' + str(n + 1) + '_q'
-            params[name] = self._scale_parameter(params[name],
-                                                 self.oseries_std[n]**2)
-            name = 'r' + str(n + 1)
-            params[name] = self._scale_parameter(params[name],
-                                                 self.oseries_std[n]**2)
-            for k in range(self.nfactors):
-                name = 'cdf' + str(k + 1) + '_c' + str(n + 1)
-                params[name] = self._scale_parameter(params[name],
-                                                     self.oseries_std[n])
-        return params
+        scale = self.oseries_std
+        observation_matrix = self.get_observation_matrix()
+        np.fill_diagonal(observation_matrix[:,:self.nseries], scale)
+        for i in range(self.nfactors):
+            observation_matrix[:, self.nseries + i] = \
+                np.multiply(scale, observation_matrix[:, self.nseries + i])
+        return observation_matrix
 
     def solve(self, solver=None, report=True, **kwargs):
         """Method to solve the time series model.
@@ -420,7 +458,7 @@ class Metran:
         report: bool, optional
             Print a report to the screen after optimization finished. This
             can also be manually triggered after optimization by calling
-            print(ml.fit_report()) on the Pastas model instance.
+            print(mt.fit_report()) on the Pastas model instance.
         **kwargs: dict, optional
             All keyword arguments will be passed onto minimization method
             from the solver. It depends on the solver used which arguments
@@ -428,11 +466,11 @@ class Metran:
 
         Notes
         -----
-        - The solver object including some results are stored as ml.fit.
-          From here one can access the covariance (ml.fit.pcov) and
-          correlation matrix (ml.fit.pcor).
+        - The solver object including some results are stored as mt.fit.
+          From here one can access the covariance (mt.fit.pcov) and
+          correlation matrix (mt.fit.pcor).
         - Each solver return a number of results after optimization. These
-          solver specific results are stored in ml.fit.result and can be
+          solver specific results are stored in mt.fit.result and can be
           accessed from there.
 
         See Also
@@ -444,16 +482,16 @@ class Metran:
         # Store the solve instance
         if solver is None:
             if self.fit is None:
-                self.fit = LmfitSolve(ml=self)
+                self.fit = LmfitSolve(mt=self)
         elif not issubclass(solver, self.fit.__class__):
-            self.fit = solver(ml=self)
+            self.fit = solver(mt=self)
 
         self.settings["solver"] = self.fit._name
 
         # Solve model
         success, self.params = self.fit.solve(**kwargs)
         if not success:
-            self.logger.warning("Model parameters could not be estimated "
+            logger.warning("Model parameters could not be estimated "
                                 "well.")
 
         self.parameters["optimal"] = np.array([p.value
@@ -467,7 +505,7 @@ class Metran:
             else:
                 output = "full"
             print(self.fit_report(output=output) + "\n")
-            print(self.metran_report(output=output))
+            print(self.metran_report())
 
     def fit_report(self, output="full"):
         """Method that reports on the fit after a model is optimized.
@@ -488,18 +526,15 @@ class Metran:
         This method is called by the solve method if report=True, but can
         also be called on its own::
 
-        >>> print(ml.fit_report)
+        >>> print(mt.fit_report())
 
         Notes
         -----
         The reported values for the fit use the residuals time series where
         possible. If interpolation is used this means that the result may
-        slightly differ compared to using ml.simulate() and ml.observations().
+        slightly differ compared to using mt.simulate() and mt.observations().
         """
         model = {
-            "nfev": self.fit.nfev,
-            # "nobs": self.observations().index.size,
-            # "noise": str(self.settings["noise"]),
             "tmin": str(self.settings["tmin"]),
             "tmax": str(self.settings["tmax"]),
             "freq": self.settings["freq"],
@@ -509,6 +544,10 @@ class Metran:
 
         fit = {
             "Obj": "{:.2f}".format(self.fit.obj_func),
+            "nfev": self.fit.nfev,
+            "AIC": "{:.2f}".format(self.fit.aic),
+            "BIC": "{:.2f}".format(self.fit.bic),
+            "": ""
         }
 
         parameters = self.parameters.loc[:, ["optimal", "stderr",
@@ -569,14 +608,8 @@ class Metran:
 
         return report
 
-    def metran_report(self, output="full"):
-        """Method that reports on the metran model parameters.
-
-        Parameters
-        ----------
-        output: str, optional
-            If any other value than "full" is provided, the parameter
-            correlations will be removed from the output.
+    def metran_report(self):
+        """Method that reports on the metran model results.
 
         Returns
         -------
@@ -588,34 +621,49 @@ class Metran:
         This method is called by the solve method if report=True, but can
         also be called on its own::
 
-        >>> print(ml.metran_report)
+        >>> print(mt.metran_report())
         """
 
         model = {
-            "nfct": str(self.nfactors),
-            "fep": "{:.2f}%".format(self.fep)
+            "tmin": str(self.settings["tmin"]),
+            "tmax": str(self.settings["tmax"]),
+            "freq": self.settings["freq"]
         }
 
+        fit = {
+            "nfct": str(self.nfactors),
+            "fep": "{:.2f}%".format(self.fep),
+            "": ""
+        }
+
+        # Create the communality block
+        communality = Series(self.communality,
+                             index=self.oseries.columns,
+                             name="")
+        communality = communality.apply("{:.2%}".format).to_frame()
+
+        # get width of index to align state parameters index
+        idx_width = int(max([len(n) for n in communality.index]))
+
+        # Create the state parameters block
         phi = np.diag(self.get_transition_matrix())
         q = self.get_transition_variance()
-        names = ["sdf" + str(i+1) for i in range(self.nseries)]
-        names.extend(["cdf" + str(i+1) for i in range(self.nfactors)])
+        names = [("sdf" + str(i+1)).ljust(idx_width)
+                 for i in range(self.nseries)]
+        names.extend([("cdf" + str(i+1)).ljust(idx_width)
+                      for i in range(self.nfactors)])
         transition = DataFrame(np.array([phi, q]).T,
                                index=names,
                                columns=["phi", "q"])
 
+        # Create the observation parameters block
         gamma = self.factors
-        names = ["cdf" + str(i+1) for i in range(self.nfactors)]
+        names = ["gamma" + str(i+1) for i in range(self.nfactors)]
         observation = DataFrame(gamma,
                                 index=self.oseries.columns,
                                 columns=names)
         observation.loc[:, "scale"] = self.oseries_std
         observation.loc[:, "mean"] = self.oseries_mean
-
-        communality = Series(self.communality,
-                             index=self.oseries.columns,
-                             name="")
-        communality = communality.apply("{:.2%}".format).to_frame()
 
         # Determine the width of the fit_report based on the parameters
         width = max(len(transition.__str__().split("\n")[1]),
@@ -631,8 +679,10 @@ class Metran:
                       line=string.format("", fill='=', align='>', width=width))
 
         factors = ""
-        for (val1, val2) in model.items():
-            factors += "{:<8} {:<22}\n".format(val1, val2)
+        for (val1, val2), (val3, val4) in zip(model.items(), fit.items()):
+            val4 = string.format(val4, fill=' ', align='>', width=w)
+            factors += "{:<8} {:<19} {:<7} {:}\n".format(val1, val2,
+                                                         val3, val4)
 
         # Create the transition block
         transition = "\nState parameters\n{line}\n" \

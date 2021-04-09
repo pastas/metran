@@ -7,7 +7,7 @@ residuals or noise series.
 
 To solve a model the following syntax can be used:
 
->>> ml.solve(solver=ps.LmfitSolve)
+>>> mt.solve(solver=ps.LmfitSolve)
 """
 
 from copy import deepcopy
@@ -23,7 +23,7 @@ logger = getLogger(__name__)
 class LmfitSolve():
     _name = "LmfitSolve"
 
-    def __init__(self, ml, pcov=None, nfev=None, **kwargs):
+    def __init__(self, mt, pcov=None, nfev=None, **kwargs):
         """Solving the model using the LmFit solver [LM]_.
 
          This is basically a wrapper around the scipy solvers, adding some
@@ -49,7 +49,7 @@ class LmfitSolve():
         except ImportError:
             msg = "lmfit not installed. Please install lmfit first."
             raise ImportError(msg)
-        self.ml = ml
+        self.mt = mt
         self.pcov = pcov  # Covariances of the parameters
         if pcov is None:
             self.pcor = None  # Correlation between parameters
@@ -62,7 +62,7 @@ class LmfitSolve():
 
         # Deal with the parameters
         parameters = lmfit.Parameters()
-        p = self.ml.parameters.loc[:, ['initial', 'pmin', 'pmax', 'vary']]
+        p = self.mt.parameters.loc[:, ['initial', 'pmin', 'pmax', 'vary']]
         initial = {}
         for k in p.index:
             pp = np.where(p.loc[k].isnull(), None, p.loc[k])
@@ -80,7 +80,7 @@ class LmfitSolve():
 
         # calculate covariance matrix using finite differences
         self.result = self.stdcorr(self.result, self.objfunction,
-                                   (callback,))
+                                    (callback,))
 
         # Set all parameter attributes
         pcov = None
@@ -94,6 +94,8 @@ class LmfitSolve():
 
         # Set all optimization attributes
         self.nfev = self.result.nfev
+        self.aic = self.result.aic
+        self.bic = self.result.bic
         self.obj_func = self.result.chisqr
 
         if hasattr(self.result, "success"):
@@ -104,7 +106,7 @@ class LmfitSolve():
         return success, self.result.params
 
     def objfunction(self, p, callback):
-        obj = self.ml.get_mle(p.valuesdict())
+        obj = self.mt.get_mle(p.valuesdict())
         return obj
 
     def stdcorr(self, optresult, f, fcn_args, epsilon=None, cutoff=True,
@@ -122,12 +124,12 @@ class LmfitSolve():
             cost function
         arglist : list
             arguments to be passed to function `f`
-        epsilon : float (optional)
+        epsilon : float, optional
             pertubation in finite difference scheme,
             default = :math:`\\epsilon^{1/4}\\mathrm{max}(x_0,0.1)`.
             If finite difference approximation results in `NaN` for
             standard deviation, epsilon will be increase with factor 10.
-        cutoff : boolean (optional)
+        cutoff : boolean, optional
             determine whether standard deviation for `res_r`
             (measurement variance) will be set to `None` if parameter value
             is close to zero (normality assumption is violated)
@@ -341,7 +343,7 @@ class LmfitSolve():
             `par`.
         neval integer
             number of gradient evaluations
-        args : list (optional)
+        args : list, optional
             Any other arguments that are to be passed to `f`
         diff : string
             forward or central difference scheme (default: forward)
