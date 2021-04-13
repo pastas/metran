@@ -15,10 +15,11 @@ from logging import getLogger
 
 import numpy as np
 from pandas import DataFrame
+from pastas.utils import initialize_logger
 from statsmodels.stats.moment_helpers import cov2corr
 
 logger = getLogger(__name__)
-
+initialize_logger(logger)
 
 class LmfitSolve():
     _name = "LmfitSolve"
@@ -75,7 +76,6 @@ class LmfitSolve():
                                     scale_covar=False,
                                     fcn_args=(callback,),
                                     **kwargs)
-
         self.result = self.mini.minimize(method=method)
 
         # calculate covariance matrix using finite differences
@@ -176,7 +176,7 @@ class LmfitSolve():
         # set stderr of (non-vary and non-expr) to None
         for name in optresult.params:
             if (not(optresult.params[name].vary)
-                    and optresult.params[name].expr is None):
+                and optresult.params[name].expr is None):
                 optresult.params[name].stderr = None
 
        # initialize local variables and objects
@@ -194,7 +194,7 @@ class LmfitSolve():
         # define epsilon
         if epsilon is None:
             EPS = np.MachAr().eps
-            epsilon = EPS**(1. / 4)
+            epsilon = EPS ** (1. / 4)
 
         # maximum epsilon
         epsilon_max = 1000. * epsilon
@@ -271,7 +271,7 @@ class LmfitSolve():
                     optresult.params[x0name[j]].init_value = initvalue[j]
                     # check if rmeas differs significantly (3*std) from zero.
                     if (cutoff and x0name[j] == 'res_r'
-                            and 3 * std[j] > optresult.params[x0name[j]].value):
+                        and 3 * std[j] > optresult.params[x0name[j]].value):
                         # if not, then the assumption of normality
                         # would not be valid
                         # standard deviation and correlation
@@ -378,7 +378,7 @@ class LmfitSolve():
 
         if epsilon is None:
             EPS = np.MachAr().eps
-            epsilon = EPS**(1. / 3)
+            epsilon = EPS ** (1. / 3)
 
         if neval is None:
             nk = len(xk)

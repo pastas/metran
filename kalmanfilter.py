@@ -4,9 +4,8 @@
 @author: Wilbert Berendrecht
 """
 
-import importlib
+import sys
 import numpy as np
-from pandas import DataFrame
 from pastas.decorators import njit
 from logging import getLogger
 
@@ -36,10 +35,8 @@ def filter_predict(current_state_mean, current_state_covariance,
     predicted_state_mean = np.dot(transition_matrix, current_state_mean)
     predicted_state_covariance = (np.dot(transition_matrix,
                                          np.dot(current_state_covariance,
-                                                transition_matrix.T)
-                                         )
-                                  + transition_covariance
-    )
+                                                transition_matrix.T))
+                                  + transition_covariance)
 
     return (predicted_state_mean, predicted_state_covariance)
 
@@ -92,7 +89,7 @@ def filter_update(observations, observation_matrix, observation_variance,
 
         predicted_state_mean = predicted_state_mean + kgain * innovation
 
-        sigma = sigma + (innovation**2 / innovation_covariance)
+        sigma = sigma + (innovation ** 2 / innovation_covariance)
         detf = detf + np.log(innovation_covariance)
 
 
@@ -125,8 +122,7 @@ def seqkalmanfilter_np(observations, transition_matrix, transition_covariance,
         # Kalman filter prediction step
         (predicted_state_mean, predicted_state_covariance) = (
             filter_predict(filtered_state_mean, filtered_state_covariance,
-                           transition_matrix, transition_covariance)
-        )
+                           transition_matrix, transition_covariance))
         predicted_state_means.append(predicted_state_mean)
         predicted_state_covariances.append(predicted_state_covariance)
 
@@ -194,11 +190,8 @@ def seqkalmanfilter(observations, transition_matrix, transition_covariance,
         for r in range(dim):
             for c in range(dim):
                predicted_state_covariance[r, c] = (
-                   transition_matrix[r, r]
-                   * filtered_state_covariance[r, c]
-                   * transition_matrix[c, c]
-                   + transition_covariance[r, c]
-                   )
+                   transition_matrix[r, r] * filtered_state_covariance[r, c]
+                   * transition_matrix[c, c] + transition_covariance[r, c])
         predicted_state_means[t] = predicted_state_mean
         predicted_state_covariances[t] = predicted_state_covariance
 
@@ -213,16 +206,16 @@ def seqkalmanfilter(observations, transition_matrix, transition_covariance,
 
                 summed = 0.
                 for r in range(dim):
-                    summed += observation_matrix[idx, r] \
-                        * predicted_state_mean[r]
+                    summed += (observation_matrix[idx, r]
+                               * predicted_state_mean[r])
                 innovation = observations[t, idx] - summed
 
                 dotmat = np.zeros(dim, dtype=np.float64)
                 for r in range(dim):
                     summed = 0.
                     for c in range(dim):
-                        summed += predicted_state_covariance[r, c] \
-                            * observation_matrix[idx, c]
+                        summed += (predicted_state_covariance[r, c]
+                                   * observation_matrix[idx, c])
                     dotmat[r] = summed
 
                 summed = 0.
@@ -242,7 +235,7 @@ def seqkalmanfilter(observations, transition_matrix, transition_covariance,
                 for r in range(dim):
                     predicted_state_mean[r] += kgain[r] * innovation
 
-                sigma += (innovation**2 / innovation_variance)
+                sigma += (innovation ** 2 / innovation_variance)
                 detf += np.log(innovation_variance)
 
             sigmas[sigmacount] = sigma
@@ -315,29 +308,21 @@ def kalmansmoother(filtered_state_means, filtered_state_covariances,
 
     for t in reversed(range(n_timesteps - 1)):
         try:
-            psc_inv = np.linalg.pinv(predicted_state_covariances[t+1])
+            psc_inv = np.linalg.pinv(predicted_state_covariances[t + 1])
         except:
-            psc_inv = np.linalg.inv(predicted_state_covariances[t+1])
-        kalman_smoothing_gains[t] = (
-            np.dot(filtered_state_covariances[t],
-                   np.dot(transition_matrix.T, psc_inv))
-            )
+            psc_inv = np.linalg.inv(predicted_state_covariances[t + 1])
+        kalman_smoothing_gains[t] = (np.dot(filtered_state_covariances[t],
+                   np.dot(transition_matrix.T, psc_inv)))
         smoothed_state_means[t] = (filtered_state_means[t]
-            + np.dot(kalman_smoothing_gains[t],
-                     (smoothed_state_means[t+1]
-                      - predicted_state_means[t+1]
-                      )
-                     )
-            )
+                                   + np.dot(kalman_smoothing_gains[t],
+                     (smoothed_state_means[t + 1]
+                      - predicted_state_means[t + 1])))
         smoothed_state_covariances[t] = (
-            filtered_state_covariances[t]
-            + np.dot(kalman_smoothing_gains[t],
-                     np.dot((smoothed_state_covariances[t+1]
-                             - predicted_state_covariances[t+1]),
-                            kalman_smoothing_gains[t].T
-                            )
-                     )
-            )
+            filtered_state_covariances[t] + np.dot(
+                kalman_smoothing_gains[t],
+                np.dot((smoothed_state_covariances[t + 1]
+                        - predicted_state_covariances[t + 1]),
+                       kalman_smoothing_gains[t].T)))
 
     return (smoothed_state_means, smoothed_state_covariances)
 
@@ -358,19 +343,11 @@ class SPKalmanFilter():
         self.sigmas = None
         self.nobs = None
 
-        if engine == "fortran":
-            from KalmanFilterf95 import kfseq
-            self.filtermethod = kfseq
-        elif engine == "numba":
-            check_numba = importlib.util.find_spec("numba")
-            if check_numba is not None and check_numba.name == "numba":
-                self.filtermethod = seqkalmanfilter
-            else:
-                 logger.warning("Numba is not installed. Installing Numba is "
-                                "recommended for significant speed-ups.")
-                 self.filtermethod = seqkalmanfilter_np
-        else:
+        if engine == "numpy" or "numba" not in sys.modules:
             self.filtermethod = seqkalmanfilter_np
+        else:
+            self.filtermethod = seqkalmanfilter
+
 
 
     def set_matrices(self, transition_matrix, transition_covariance,
@@ -385,11 +362,8 @@ class SPKalmanFilter():
         detfs = self.detfs[warmup:]
         sigmas = self.sigmas[warmup:]
         nobs = np.sum(self.observation_count[warmup:])
-        mle = nobs * np.log(2*np.pi) + np.sum(detfs) + np.sum(sigmas)
+        mle = nobs * np.log(2 * np.pi) + np.sum(detfs) + np.sum(sigmas)
         return mle
-
-    def get_scale(self):
-        return np.sum(self.sigmas) / self.nobs
 
     def get_projected(self, observation_matrix, method="filter"):
         if method == "smoother":
@@ -403,12 +377,25 @@ class SPKalmanFilter():
         for t in range(len(means)):
             projected_means.append(np.dot(observation_matrix, means[t]))
             var = np.diag(np.dot(observation_matrix,
-                                 np.dot(covariances[t], observation_matrix.T)
-                                 )
-                          )
-            # prevent variance to become less than 0
+                                 np.dot(covariances[t], observation_matrix.T)))
+            # prevent variances to become less than 0
             projected_variances.append(np.maximum(var, 0))
         return (projected_means, projected_variances)
+
+    def decompose_projected(self, observation_matrix, method="filter"):
+        if method == "smoother":
+            means = self.smoothed_state_means
+        else:
+            means = self.filtered_state_means
+        nsdf = self.observation_matrix.shape[0]
+        sdf_means = []
+        cdf_means = []
+        for t in range(len(means)):
+            sdf_means.append(np.dot(observation_matrix[:, :nsdf],
+                                    means[t, :nsdf]))
+            cdf_means.append(np.dot(observation_matrix[:, nsdf:],
+                                    means[t, nsdf:]))
+        return (sdf_means, cdf_means)
 
     def initialize(self, oseries):
         """Initialize sequential processing of the Kalman filter by
@@ -427,7 +414,8 @@ class SPKalmanFilter():
         observations_masked = np.ma.array(oseries,
                                           mask=(~np.isfinite(oseries)))
         (n_timesteps, dimobs) = observations_masked.shape
-        self.observation_indices = np.zeros((n_timesteps, dimobs), dtype=np.float64)
+        self.observation_indices = np.zeros((n_timesteps, dimobs),
+                                            dtype=np.float64)
         self.observation_count = np.zeros(n_timesteps, dtype=np.int64)
         self.observations = np.zeros((n_timesteps, dimobs), dtype=np.float64)
 
@@ -457,8 +445,7 @@ class SPKalmanFilter():
                            self.filtered_state_covariances,
                            self.predicted_state_means,
                            self.predicted_state_covariances,
-                           self.transition_matrix
-                           )
+                           self.transition_matrix)
 
         self.smoothed_state_means = smoothed_state_means
         self.smoothed_state_covariances = smoothed_state_covariances
@@ -516,8 +503,7 @@ class SPKalmanFilter():
                               self.observation_indices,
                               self.observation_count,
                               initial_state_mean,
-                              initial_state_covariance
-                              )
+                              initial_state_covariance)
 
         self.sigmas = sigmas[:sigmacount]
         self.detfs = detfs[:sigmacount]

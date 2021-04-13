@@ -81,7 +81,7 @@ class FactorAnalysis:
                 comm = np.zeros(factors.shape[0])
                 for i in range(factors.shape[0]):
                     for j in range(nfactors):
-                        comm[i] = comm[i] + factors[i, j]**2
+                        comm[i] = comm[i] + factors[i, j] ** 2
                     factors[i, :] = factors[i, :] / np.sqrt(comm[i])
                 factors = self._rotate(factors[:, :nfactors])
                 for i in range(factors.shape[0]):
@@ -151,9 +151,10 @@ class FactorAnalysis:
         for _ in range(maxiter):
             d_old = d
             Lambda = np.dot(phi, R)
-            u, s, vh = np.linalg.svd(np.dot(phi.T, np.asarray(Lambda)**3
-                                            - (gamma / p) * np.dot(Lambda, np.diag(
-                                                np.diag(np.dot(Lambda.T, Lambda))))))
+            u, s, vh = np.linalg.svd(
+                np.dot(phi.T, np.asarray(Lambda) ** 3 - (gamma / p)
+                       * np.dot(Lambda, np.diag(
+                           np.diag(np.dot(Lambda.T, Lambda))))))
             R = np.dot(u, vh)
             d = np.sum(s)
             if (d_old != 0) and (d / d_old < 1 + tol):
@@ -196,7 +197,8 @@ class FactorAnalysis:
             bounds.append((0.005, 1))
 
         res = scopt.minimize(self._minresfun, start, method='L-BFGS-B',
-                             jac=self._minresgrad, bounds=bounds, args=(s, nf))
+                             jac=self._minresgrad, bounds=bounds,
+                             args=(s, nf))
 
         loadings = self._get_loadings(res.x, sorg, nf)
 
