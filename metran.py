@@ -57,43 +57,7 @@ class Metran:
         if tmax is not None:
             self.settings["tmax"] = tmax
 
-        # combine series to DataFrame
-        if isinstance(oseries, (list, tuple)):
-            _oseries = []
-            _names = []
-            if len(oseries) > 1:
-                for os in oseries:
-                    if isinstance(os, TimeSeries):
-                        _oseries.append(os.series)
-                        _names.append(os.name)
-                    elif isinstance(os, (Series, DataFrame)):
-                        if isinstance(os, DataFrame):
-                            if os.shape[1] > 1:
-                                raise Exception("One or more series have "
-                                                + "DataFrame with multiple "
-                                                + "columns")
-                            os = os.squeeze()
-                        _oseries.append(os)
-                        _names.append(os.name)
-                self.snames = _names
-                oseries = concat(_oseries, axis=1)
-            else:
-                oseries = DataFrame()
-        elif isinstance(oseries, DataFrame):
-            self.snames = oseries.columns
-        else:
-            raise Exception("Input type should be either a "
-                            "list, tuple, or pandas.DataFrame")
-
-        if oseries.shape[1] < 2:
-            raise Exception("Metran requires at least 2 series, "
-                            "found " + str(oseries.shape[1]))
-
-        oseries = self.truncate(oseries)
-        oseries = oseries.asfreq("D")
-        self.nseries = oseries.shape[1]
-        self.oseries = self.standardize(oseries)
-        self.test_cross_section()
+        self.set_oseries(oseries)
 
         if name is None:
             name = 'Cluster'
@@ -171,10 +135,6 @@ class Metran:
         a = Timedelta(1, self.settings["freq"]) / Timedelta("1d")
         return np.exp(-a / p)
 
-    def _dalpha(self, p):
-        a = Timedelta(1, self.settings["freq"]) / Timedelta("1d")
-        return np.exp(-a / p) * a / p ** 2
-
     def get_transition_matrix(self, p=None, initial=False):
         if p is None:
             p = self.get_parameters(initial)
@@ -231,6 +191,27 @@ class Metran:
                 self.get_observation_matrix(p),
                 self.get_observation_variance())
 
+    def get_parameters(self, initial=False):
+        """Method to get all parameters from the individual objects.
+
+        Parameters
+        ----------
+        initial: bool, optional
+            True to get initial parameters, False to get optimized parameters.
+            If optimized parameters do not exist, return initial parameters.
+
+        Returns
+        -------
+        parameters: pandas.Series
+            initial or optimal parameters
+        """
+        if not(initial) and "optimal" in self.parameters:
+            parameters = self.parameters["optimal"]
+        else:
+            parameters = self.parameters["initial"]
+
+        return parameters
+
     def set_init_parameters(self):
         pinit_alpha = 10
         for n in range(self.nfactors):
@@ -280,6 +261,46 @@ class Metran:
         """
         self.parameters.loc[name, "vary"] = value
 
+    def set_oseries(self, oseries):
+        # combine series to DataFrame
+        if isinstance(oseries, (list, tuple)):
+            _oseries = []
+            _names = []
+            if len(oseries) > 1:
+                for os in oseries:
+                    if isinstance(os, TimeSeries):
+                        _oseries.append(os.series)
+                        _names.append(os.name)
+                    elif isinstance(os, (Series, DataFrame)):
+                        if isinstance(os, DataFrame):
+                            if os.shape[1] > 1:
+                                raise Exception("One or more series have "
+                                                + "DataFrame with multiple "
+                                                + "columns")
+                            os = os.squeeze()
+                        _oseries.append(os)
+                        _names.append(os.name)
+                self.snames = _names
+                oseries = concat(_oseries, axis=1)
+            else:
+                oseries = DataFrame()
+        elif isinstance(oseries, DataFrame):
+            self.snames = oseries.columns
+        else:
+            raise Exception("Input type should be either a "
+                            "list, tuple, or pandas.DataFrame")
+
+        if oseries.shape[1] < 2:
+            raise Exception("Metran requires at least 2 series, "
+                            "found " + str(oseries.shape[1]))
+
+        oseries = self.truncate(oseries)
+        oseries = oseries.asfreq("D")
+        self.nseries = oseries.shape[1]
+        self.oseries = self.standardize(oseries)
+        self.test_cross_section()
+
+
     def get_mle(self, p):
         """Run Kalmanfilter and calculate maximum likelihood estimate.
 
@@ -299,91 +320,104 @@ class Metran:
         mle = self.kf.get_mle()
         return mle
 
-    def get_state_means(self, p=None):
-        self._run_smoother(p)
+    def get_state_means(self, p=None, method="smoother"):
+        self._run_kalman(method, p=p)
         columns = ["sdf" + str(i + 1) for i in range(self.nseries)]
         columns.extend(["cdf" + str(i + 1) for i in range(self.nfactors)])
-        state_means = DataFrame(self.kf.smoothed_state_means,
-                                index=self.oseries.index,
+        if method == "filter":
+            means = self.kf.filtered_state_means
+        else:
+            means = self.kf.smoothed_state_means
+        state_means = DataFrame(means, index=self.oseries.index,
                                 columns=columns)
         return state_means
 
-    def get_state_variances(self, p=None):
-        self._run_smoother(p)
+    def get_state_variances(self, p=None, method="smoother"):
+        self._run_kalman(method, p=p)
         with np.errstate(invalid='ignore'):
-            n_timesteps = self.kf.smoothed_state_covariances.shape[0]
-            var = np.vstack([np.diag(self.kf.smoothed_state_covariances[i])
-                            for i in range(n_timesteps)])
+            if method == "filter":
+                cov = self.kf.filtered_state_covariances
+            else:
+                cov = self.kf.smoothed_state_covariances
+            n_timesteps = cov.shape[0]
+            var = np.vstack([np.diag(cov[i]) for i in range(n_timesteps)])
         columns = ["sdf" + str(i + 1) for i in range(self.nseries)]
         columns.extend(["cdf" + str(i + 1) for i in range(self.nfactors)])
         state_variances = DataFrame(var, index=self.oseries.index,
                                     columns=columns)
         return state_variances
 
-    def get_state(self, i, p=None, ci=True):
-        self._run_smoother(p)
+    def get_state(self, i, p=None, ci=True, method="smoother"):
         if i < 0 or i >= self.nstate:
             self.logger.error("Value of i must be >=0 and <" + self.nstate)
-        df = self.get_state_means(p).iloc[:, i]
+        df = self.get_state_means(p=p, method=method).iloc[:, i]
         if ci:
-            variances = self.get_state_variances(p).iloc[:, i]
+            variances = self.get_state_variances(p=p, method=method).iloc[:, i]
             iv = 1.96 * np.sqrt(variances)
             df = concat([df, df - iv, df + iv], axis=1)
             df.columns = ['mean', 'lower', 'upper']
         return df
 
-    def get_projected_means(self, p=None, standardized=False):
-        self._run_smoother(p)
+    def get_projected_means(self, p=None, standardized=False,
+                            method="smoother"):
+        self._run_kalman(method, p=p)
         if standardized:
             observation_matrix = self.observation_matrix
         else:
             observation_matrix = self.get_scaled_observation_matrix()
         (smoothed_projected_means, _) = \
-            self.kf.get_projected(observation_matrix, method="smoothed")
+            self.kf.get_projected(observation_matrix, method=method)
         projected_means = \
             DataFrame(smoothed_projected_means,
                       index=self.oseries.index,
                       columns=self.oseries.columns)
         return projected_means
 
-    def get_projected_variances(self, p=None, standardized=False):
-        self._run_smoother(p)
+    def get_projected_variances(self, p=None, standardized=False,
+                                method="smoother"):
+        self._run_kalman(method, p=p)
         if standardized:
             observation_matrix = self.observation_matrix
         else:
             observation_matrix = self.get_scaled_observation_matrix()
         (_, smoothed_projected_variances) = \
-            self.kf.get_projected(observation_matrix, method="smoothed")
+            self.kf.get_projected(observation_matrix, method=method)
         projected_variances = \
             DataFrame(smoothed_projected_variances,
                       index=self.oseries.index,
                       columns=self.oseries.columns)
-        projected_variances.name = "projected_variances"
         return projected_variances
 
-    def get_projection(self, name, p=None, ci=True, standardized=False):
+    def get_projection(self, name, p=None, ci=True, standardized=False,
+                       method="smoother"):
         df = None
-        means = self.get_projected_means(p=p, standardized=standardized)
+        means = self.get_projected_means(p=p, standardized=standardized,
+                                         method=method)
         if name in means.columns:
             df = means.loc[:, name]
             if ci:
-                variances = self.get_projected_variances(p).loc[:, name]
+                variances = \
+                    self.get_projected_variances(p=p,
+                                                 standardized=standardized,
+                                                 method=method
+                                                 ).loc[:, name]
                 iv = 1.96 * np.sqrt(variances)
-                df = concat([means, means - iv, means + iv], axis=1)
+                df = concat([df, df - iv, df + iv], axis=1)
                 df.columns = ['mean', 'lower', 'upper']
         else:
             logger.error("Unknown name: " + name)
         return df
 
-    def decompose_projection(self, name, p=None, standardized=False):
+    def decompose_projection(self, name, p=None, standardized=False,
+                             method="smoother"):
         df = None
-        self._run_smoother(p)
+        self._run_kalman(method, p=p)
         if standardized:
             observation_matrix = self.observation_matrix
         else:
             observation_matrix = self.get_scaled_observation_matrix()
         (sdf_means, cdf_means) = \
-            self.kf.decompose_projected(observation_matrix, method="smoothed")
+            self.kf.decompose_projected(observation_matrix, method=method)
         if name in self.oseries.columns:
             sdf = DataFrame(sdf_means,
                             index=self.oseries.index,
@@ -397,17 +431,19 @@ class Metran:
             logger.error("Unknown name: " + name)
         return df
 
-    def _run_smoother(self, p=None):
-        if p is not None:
-            self.kf.set_matrices(*self.get_matrices(p))
-            self.kf.run_smoother()
-        elif self.kf.smoothed_state_means is None:
-            self.kf.run_smoother()
-
-    def _run_filter(self, p=None):
-        if p is not None:
-            self.kf.set_matrices(*self.get_matrices(p))
-            self.kf.run_filter()
+    def _run_kalman(self, method, p=None):
+        if method == "filter":
+            if p is not None:
+                self.kf.set_matrices(*self.get_matrices(p))
+                self.kf.run_filter()
+            elif self.kf.filtered_state_means is None:
+                self.kf.run_filter()
+        else:
+            if p is not None:
+                self.kf.set_matrices(*self.get_matrices(p))
+                self.kf.run_smoother()
+            elif self.kf.smoothed_state_means is None:
+                self.kf.run_smoother()
 
     def get_filtered_state_means(self, p=None):
         """Get filtered state mean (expected value)
@@ -471,27 +507,6 @@ class Metran:
                                          data=variances,
                                          columns=columns)
         return filtered_state_variances
-
-    def get_parameters(self, initial=True):
-        """Method to get all parameters from the individual objects.
-
-        Parameters
-        ----------
-        initial: bool, optional
-            True to get initial parameters, False to get optimized parameters.
-            If optimized parameters do not exist, return initial parameters.
-
-        Returns
-        -------
-        parameters: pandas.DataFrame
-            pandas.Dataframe with the parameters.
-        """
-        if not(initial) and "optimal" in self.parameters:
-            parameters = self.parameters["optimal"]
-        else:
-            parameters = self.parameters["initial"]
-
-        return parameters
 
     def get_scaled_observation_matrix(self):
         """Method scale observation matrix by standard deviations of oseries.
@@ -814,8 +829,8 @@ class Metran:
                 cor = cor.to_string(header=False)
             else:
                 cor = "None"
-            correlations = "\n\nState correlations |rho| > 0.5\n{}" \
-                           "\n{}".format(string.format("", fill='=',
+            correlations = "\nState correlations |rho| > 0.5\n{}" \
+                           "\n{}\n".format(string.format("", fill='=',
                                                        align='>',
                                                        width=width), cor)
         else:

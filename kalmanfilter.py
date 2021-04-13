@@ -365,13 +365,13 @@ class SPKalmanFilter():
         mle = nobs * np.log(2 * np.pi) + np.sum(detfs) + np.sum(sigmas)
         return mle
 
-    def get_projected(self, observation_matrix, method="filter"):
-        if method == "smoother":
-            means = self.smoothed_state_means
-            covariances = self.smoothed_state_covariances
-        else:
+    def get_projected(self, observation_matrix, method="smoother"):
+        if method == "filter":
             means = self.filtered_state_means
             covariances = self.filtered_state_covariances
+        else:
+            means = self.smoothed_state_means
+            covariances = self.smoothed_state_covariances
         projected_means = []
         projected_variances = []
         for t in range(len(means)):
@@ -382,11 +382,11 @@ class SPKalmanFilter():
             projected_variances.append(np.maximum(var, 0))
         return (projected_means, projected_variances)
 
-    def decompose_projected(self, observation_matrix, method="filter"):
-        if method == "smoother":
-            means = self.smoothed_state_means
-        else:
+    def decompose_projected(self, observation_matrix, method="smoother"):
+        if method == "filter":
             means = self.filtered_state_means
+        else:
+            means = self.smoothed_state_means
         nsdf = self.observation_matrix.shape[0]
         sdf_means = []
         cdf_means = []
