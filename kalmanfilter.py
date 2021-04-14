@@ -332,13 +332,7 @@ class SPKalmanFilter():
     def __init__(self, engine="numba"):
         """
         """
-
-        self.filtered_state_means = None
-        self.filtered_state_covariances = None
-        self.predicted_state_means = None
-        self.predicted_state_covariances = None
-        self.smoothed_state_means = None
-        self.smoothed_state_covariances = None
+        self.init_states()
         self.detfs = None
         self.sigmas = None
         self.nobs = None
@@ -348,7 +342,13 @@ class SPKalmanFilter():
         else:
             self.filtermethod = seqkalmanfilter
 
-
+    def init_states(self):
+        self.filtered_state_means = None
+        self.filtered_state_covariances = None
+        self.predicted_state_means = None
+        self.predicted_state_covariances = None
+        self.smoothed_state_means = None
+        self.smoothed_state_covariances = None
 
     def set_matrices(self, transition_matrix, transition_covariance,
                      observation_matrix, observation_variance):
@@ -397,7 +397,7 @@ class SPKalmanFilter():
                                     means[t, nsdf:]))
         return (sdf_means, cdf_means)
 
-    def initialize(self, oseries):
+    def set_observations(self, oseries):
         """Initialize sequential processing of the Kalman filter by
         constructing observation matrices allowing missing values.
 

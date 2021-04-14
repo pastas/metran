@@ -57,7 +57,9 @@ class Metran:
         if tmax is not None:
             self.settings["tmax"] = tmax
 
-        self.set_oseries(oseries)
+        # Initialize
+        self.nfactors = 0
+        self.set_observations(oseries)
 
         if name is None:
             name = 'Cluster'
@@ -65,22 +67,21 @@ class Metran:
 
         self.parameters = DataFrame(columns=['initial', 'pmin', 'pmax',
                                              'vary', 'name'])
-
-        self.get_factoranalysis(self.oseries)
-        self.init_kalmanfilter(self.oseries)
-        self.nstate = self.nseries + self.nfactors
-
         self.set_init_parameters()
-
-        # File Information
-        self.file_info = self._get_file_info()
 
         # initialize attributes for solving
         self.fit = None
 
+        # File Information
+        self.file_info = self._get_file_info()
+
     @property
     def nparam(self):
         return self.parameters.index.size
+
+    @property
+    def nstate(self):
+        return self.nseries + self.nfactors
 
     def standardize(self, oseries):
         std = oseries.std()
@@ -115,10 +116,11 @@ class Metran:
         if pairs.min() < max(min_pairs, 1):
             err = pairs[pairs < min_pairs].index.tolist()
             msg = "Number of cross-sectional data is less than " \
-            + str(min_pairs) + " for series " + (',').join([e for e in err])
+                + str(min_pairs) + " for series " \
+                    + (',').join([e for e in err])
             raise Exception(msg)
 
-    def get_factoranalysis(self, oseries):
+    def get_factors(self, oseries):
         fa = FactorAnalysis(oseries)
         self.factors = fa.solve()
         self.eigval = fa.eigval
@@ -129,7 +131,7 @@ class Metran:
 
     def init_kalmanfilter(self, oseries):
         self.kf = SPKalmanFilter()
-        self.kf.initialize(oseries)
+        self.kf.set_observations(oseries)
 
     def _phi(self, p):
         a = Timedelta(1, self.settings["freq"]) / Timedelta("1d")
@@ -261,7 +263,23 @@ class Metran:
         """
         self.parameters.loc[name, "vary"] = value
 
-    def set_oseries(self, oseries):
+    def mask_observations(self, mask):
+        if mask.shape != self.oseries.shape:
+            logger.error("Dimensions of mask " + str(mask.shape)
+                         + " do not equal dimensions of series "
+                         + str(self.oseries.shape)
+                         + ". Mask cannot be applied.")
+        else:
+            oseries = self.oseries.mask(mask.astype(bool))
+            self.kf.init_states()
+            self.kf.set_observations(oseries)
+
+    def unmask_observations(self):
+        oseries = self.oseries
+        self.kf.init_states()
+        self.kf.set_observations(oseries)
+
+    def set_observations(self, oseries):
         # combine series to DataFrame
         if isinstance(oseries, (list, tuple)):
             _oseries = []
@@ -300,6 +318,8 @@ class Metran:
         self.oseries = self.standardize(oseries)
         self.test_cross_section()
 
+    def get_observations(self):
+        return self.oseries
 
     def get_mle(self, p):
         """Run Kalmanfilter and calculate maximum likelihood estimate.
@@ -399,8 +419,7 @@ class Metran:
                 variances = \
                     self.get_projected_variances(p=p,
                                                  standardized=standardized,
-                                                 method=method
-                                                 ).loc[:, name]
+                                                 method=method).loc[:, name]
                 iv = 1.96 * np.sqrt(variances)
                 df = concat([df, df - iv, df + iv], axis=1)
                 df.columns = ['mean', 'lower', 'upper']
@@ -557,6 +576,13 @@ class Metran:
             Different solver objects are available to estimate parameters.
         """
 
+        # Perform factor analysis to get factors
+        self.get_factors(self.oseries)
+        # Initialize Kalmanfilter
+        self.init_kalmanfilter(self.oseries)
+        # Initialize parameters
+        self.set_init_parameters()
+
         # Store the solve instance
         if solver is None:
             if self.fit is None:
@@ -568,9 +594,6 @@ class Metran:
 
         # Solve model
         success, self.params = self.fit.solve(**kwargs)
-        if not success:
-            logger.warning("Model parameters could not be estimated "
-                                "well.")
 
         self.parameters["optimal"] = np.array([p.value
                                                for p in self.params.values()])
