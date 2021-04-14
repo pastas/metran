@@ -1,40 +1,41 @@
-# -*- coding: utf-8 -*-
-"""Created on Mon Mar 29 08:47:25 2021.
+"""This module contains the Kalman filter class for Metran
+and associated filtering and smoothing methods.
 
-@author: Wilbert Berendrecht
 """
 
 import sys
 import numpy as np
 from pastas.decorators import njit
 from logging import getLogger
+from pastas.utils import initialize_logger
 
 logger = getLogger(__name__)
+initialize_logger(logger)
 
-def filter_predict(current_state_mean, current_state_covariance,
+def filter_predict(filtered_state_mean, filtered_state_covariance,
                    transition_matrix, transition_covariance):
-    """Calculate the mean and covariance of :math:`P(x_{t|t-1})`
+    """Predict state with a Kalman Filter using sequential processing
 
     Parameters
     ----------
-    current_state_mean: [n_dim_state] array
-        mean of state at time t given observations from times
+    filtered_state_mean: numpy.ndarray
+        Mean of state at time t-1 given observations from times
         [0...t-1]
-    current_state_covariance: [n_dim_state, n_dim_state] array
-        covariance of state at time t given observations from times
+    filtered_state_covariance: numpy.ndarray
+        Covariance of state at time t-1 given observations from times
         [0...t-1]
 
     Returns
     -------
-    predicted_state_mean : [n_dim_state] array
-        mean of state at time t given observations from times [0...t-1]
-    predicted_state_covariance : [n_dim_state, n_dim_state] array
-        covariance of state at time t given observations from times
+    predicted_state_mean : numpy.ndarray
+        Mean of state at time t given observations from times [0...t-1]
+    predicted_state_covariance : numpy.ndarray
+        Covariance of state at time t given observations from times
         [0...t-1]
     """
-    predicted_state_mean = np.dot(transition_matrix, current_state_mean)
+    predicted_state_mean = np.dot(transition_matrix, filtered_state_mean)
     predicted_state_covariance = (np.dot(transition_matrix,
-                                         np.dot(current_state_covariance,
+                                         np.dot(filtered_state_covariance,
                                                 transition_matrix.T))
                                   + transition_covariance)
 
@@ -42,33 +43,43 @@ def filter_predict(current_state_mean, current_state_covariance,
 
 def filter_update(observations, observation_matrix, observation_variance,
                   observation_indices, observation_count,
-                  predicted_state_mean, predicted_state_covariance):
+                  state_mean, state_covariance):
     """Update a predicted state with a Kalman Filter update using
-    sequential processing (assumption of uncorrelated observation error)
+    sequential processing
 
     Parameters
     ----------
-    predicted_state_mean : [n_dim_state] array
+    observations : numpy.ndarray
+        Observations for sequential processing of Kalman filter.
+    observation_matrix : numpy.ndarray
+        observation matrix to project state.
+    observation_variance : numpy.ndarray
+        observation variances
+    observation_indices : numpy.ndarray
+        used to compress observations, observation_matrix,
+        and observation_variance skipping missing values.
+    observation_count : numpy.ndarray
+        number of observed time series for each timestep
+        determining the number of elements to be read in observation_indices.
+    state_mean : numpy.ndarray
         mean of state at time t given observations from times
-        [0...t-1], i.e. predicted state mean
-    predicted_state_covariance : [n_dim_state, n_dim_state] array
+        [0...t-1]
+    state_covariance : numpy.ndarray
         covariance of state at time t given observations from times
-        [0...t-1], i.e. predicted state covariance
+        [0...t-1]
 
     Returns
     -------
-    filtered_state_mean : [n_dim_state] array
-        mean of state at time t given observations from times
+    state_mean : [n_dim_state] array
+        Mean of state at time t given observations from times
         [0...t], i.e. updated state mean
-    filtered_state_covariance : [n_dim_state, n_dim_state] array
-        covariance of state at time t given observations from times
+    state_covariance : [n_dim_state, n_dim_state] array
+        Covariance of state at time t given observations from times
         [0...t], i.e. updated state covariance
     sigma : float
-        :math:`\\nu_{t}^{2}/f_{t}` to be used in
-        concentrated loglikelihood
+        Weighted squared innovations.
     detf : float
-        determinant of :math:`F_{t}` to be used in
-        concentrated loglikelihood
+        Log of determinant of innovation variances matrix.
     """
 
     sigma = 0.
@@ -78,41 +89,81 @@ def filter_update(observations, observation_matrix, observation_variance,
         observation_index = int(observation_indices[i])
         obsmat = observation_matrix[observation_index, :]
         innovation = (observations[observation_index]
-                      - np.dot(obsmat, predicted_state_mean))
-        dot_statecov_obsmat = np.dot(predicted_state_covariance, obsmat)
+                      - np.dot(obsmat, state_mean))
+        dot_statecov_obsmat = np.dot(state_covariance, obsmat)
         innovation_covariance = (np.dot(obsmat, dot_statecov_obsmat)
                                  + observation_variance[observation_index])
         kgain = dot_statecov_obsmat / innovation_covariance
-        predicted_state_covariance = (predicted_state_covariance
+        state_covariance = (state_covariance
                                       - (np.outer(kgain, kgain)
                                          * innovation_covariance))
 
-        predicted_state_mean = predicted_state_mean + kgain * innovation
+        state_mean = state_mean + kgain * innovation
 
         sigma = sigma + (innovation ** 2 / innovation_covariance)
         detf = detf + np.log(innovation_covariance)
 
 
-    return (predicted_state_mean, predicted_state_covariance, sigma, detf)
+    return (state_mean, state_covariance, sigma, detf)
 
 
 def seqkalmanfilter_np(observations, transition_matrix, transition_covariance,
                        observation_matrix, observation_variance,
                        observation_indices, observation_count,
                        filtered_state_mean, filtered_state_covariance):
-    """
-    Apply the Kalman Filter at time :math:`t = [0,...,N]`
-    given observations up to and including time `t`.
+    """Method to run sequential Kalman filter
+    optimized for use with numpy.
+
+    This method is suggested to use if numba is not installed.
+    It is, however, much slower than seqkalmanfilter combined with numba.
+
+    Parameters
+    ----------
+    observations : numpy.ndarray
+        Observations for sequential processing of Kalman filter.
+    transition_matrix : numpy.ndarray
+        State transition matrix from time t-1 to t.
+    transition_covariance : numpy.ndarray
+        State transition covariance matrix from time t-1 to t.
+    observation_matrix : numpy.ndarray
+        Observation matrix to project state.
+    observation_variance : numpy.ndarray
+        Observation variances
+    observation_indices : numpy.ndarray
+        Used to compress observations, observation_matrix,
+        and observation_variance skipping missing values.
+    observation_count : numpy.ndarray
+        Number of observed time series for each timestep
+        determining the number of elements to be read in observation_indices.
+    filtered_state_mean : numpy.ndarray
+        Initial state mean
+    filtered_state_covariance : numpy.ndarray
+        Initial state covariance
+
+    Returns
+    -------
+    sigmas : list
+        Weighted squared innovations.
+    detfs : list
+        Log values of determinant of innovation variances matrix.
+    filtered_state_means : list
+        `filtered_state_means[t]` = mean state estimate
+        for time t given observations from times [0...t].
+    filtered_state_covariances : list
+        `filtered_state_covariances[t]` = covariance of state estimate
+        for time t given observations from times [0...t].
+    predicted_state_means : list
+        `predicted_state_means[t]` = mean state estimate
+        for time t given observations from times [0...t-1].
+    predicted_state_covariances : list
+        `predicted_state_covariances[t]` = covariance of state estimate
+        for time t given observations from times [0...t-1].
 
     """
-    # get number of time steps as number of Kalman filter recursions
-    n_timesteps = int(observations.shape[0])
-
     # initialization
+    n_timesteps = int(observations.shape[0])
     sigmas = []
     detfs = []
-
-    # initialize Kalman filter states and covariances
     filtered_state_means = []
     filtered_state_covariances = []
     predicted_state_means = []
@@ -137,7 +188,6 @@ def seqkalmanfilter_np(observations, transition_matrix, transition_covariance,
                                           observation_count[t],
                                           predicted_state_mean,
                                           predicted_state_covariance)
-            # construct list of values used for likelihood
             sigmas.append(sigma)
             detfs.append(detf)
         else:
@@ -162,7 +212,58 @@ def seqkalmanfilter(observations, transition_matrix, transition_covariance,
                     observation_matrix, observation_variance,
                     observation_indices, observation_count,
                     filtered_state_mean, filtered_state_covariance):
+    """Method to run sequential Kalman filter
+    optimized for use with numba.
 
+    This method requires numba to be installed. With numba, this method
+    is much faster than seqkalmanfilter_np. However, without numba,
+    it is extremely slow and seqkalmanfilter_np should be used.
+
+    Parameters
+    ----------
+    observations : numpy.ndarray
+        Observations for sequential processing of Kalman filter.
+    transition_matrix : numpy.ndarray
+        State transition matrix from time t-1 to t.
+    transition_covariance : numpy.ndarray
+        State transition covariance matrix from time t-1 to t.
+    observation_matrix : numpy.ndarray
+        Observation matrix to project state.
+    observation_variance : numpy.ndarray
+        Observation variances
+    observation_indices : numpy.ndarray
+        Used to compress observations, observation_matrix,
+        and observation_variance skipping missing values.
+    observation_count : numpy.ndarray
+        Number of observed time series for each timestep
+        determining the number of elements to be read in observation_indices.
+    filtered_state_mean : numpy.ndarray
+        Initial state mean
+    filtered_state_covariance : numpy.ndarray
+        Initial state covariance
+
+    Returns
+    -------
+    sigmas : numpy.ndarray
+        Weighted squared innovations.
+    detfs : numpy.ndarray
+        Log of determinant of innovation variances matrix.
+    sigmacount : int
+        Number of elements in sigmas en detfs with calculated values.
+    filtered_state_means : numpy.ndarray
+        `filtered_state_means[t]` = mean state estimate
+        for time t given observations from times [0...t].
+    filtered_state_covariances : numpy.ndarray
+        `filtered_state_covariances[t]` = covariance of state estimate
+        for time t given observations from times [0...t].
+    predicted_state_means : numpy.ndarray
+        `predicted_state_means[t]` = mean state estimate
+        for time t given observations from times [0...t-1].
+    predicted_state_covariances : numpy.ndarray
+        `predicted_state_covariances[t]` = covariance of state estimate
+        for time t given observations from times [0...t-1].
+
+    """
     # initialization
     n_timesteps = observation_count.shape[0]
     dim = filtered_state_mean.shape[0]
@@ -268,29 +369,30 @@ def kalmansmoother(filtered_state_means, filtered_state_covariances,
 
     Parameters
     ----------
-    filtered_state_means : list
-        `filtered_state_means[t]` = mean state estimate for time t given
-        observations from times [0...t]
-    filtered_state_covariances : list
-        `filtered_state_covariances[t]` = covariance of state estimate for time
-        t given observations from times [0...t]
-    predicted_state_means : list
-        `predicted_state_means[t]` = mean state estimate for time t given
-        observations from times [0...t-1]
-    predicted_state_covariances : list
-        `predicted_state_covariances[t]` = covariance of state estimate for
-        time t given observations from times [0...t-1]
-    transition_matrix : ndarray
-        state transition matrix from time t-1 to t
+    filtered_state_means : array_like
+        `filtered_state_means[t]` = mean state estimate
+        for time t given observations from times [0...t].
+    filtered_state_covariances : array_like
+        `filtered_state_covariances[t]` = covariance of state estimate
+        for time t given observations from times [0...t].
+    predicted_state_means : array_like
+        `predicted_state_means[t]` = mean state estimate
+        for time t given observations from times [0...t-1].
+    predicted_state_covariances : array_like
+        `predicted_state_covariances[t]` = covariance of state estimate
+        for time t given observations from times [0...t-1].
+    transition_matrix : numpy.ndarray
+        State transition matrix from time t-1 to t.
 
     Returns
     -------
-    smoothed_state_means : [n_timesteps, n_dim_state]
-        mean of hidden state distributions for times [0...n_timesteps-1] given
-        all observations
-    smoothed_state_covariances : [n_timesteps, n_dim_state, n_dim_state] array
-        covariance matrix of hidden state distributions for times
-        [0...n_timesteps-1] given all observations
+    smoothed_state_means : numpy.ndarray
+        Mean of hidden state distributions
+        for times [0...n_timesteps-1] given all observations
+    smoothed_state_covariances : numpy.ndarray
+        Covariance matrix of hidden state distributions
+        for times [0...n_timesteps-1] given all observations
+
     """
 
     n_timesteps = len(filtered_state_means)
@@ -328,21 +430,43 @@ def kalmansmoother(filtered_state_means, filtered_state_covariances,
 
 
 class SPKalmanFilter():
+    """Kalman filter class for Metran
+
+    Parameters
+    ----------
+    engine : str, optional
+        Engine to be used to run sequential Kalman filter.
+        Either "numba" or "numpy". The default is "numba".
+
+    Returns
+    -------
+    kf: kalmanfilter.SPKalmanFilter
+        Metran SPKalmanfilter instance.
+    """
 
     def __init__(self, engine="numba"):
-        """
-        """
         self.init_states()
         self.detfs = None
         self.sigmas = None
         self.nobs = None
+        self.mask = False
 
         if engine == "numpy" or "numba" not in sys.modules:
             self.filtermethod = seqkalmanfilter_np
+            if engine == "numba":
+                logger.warning("Numba is not installed. Installing Numba is "
+                               "recommended for significant speed-ups.")
         else:
             self.filtermethod = seqkalmanfilter
 
     def init_states(self):
+        """Method to initialize state means and covariances.
+
+        Returns
+        -------
+        None.
+
+        """
         self.filtered_state_means = None
         self.filtered_state_covariances = None
         self.predicted_state_means = None
@@ -352,6 +476,24 @@ class SPKalmanFilter():
 
     def set_matrices(self, transition_matrix, transition_covariance,
                      observation_matrix, observation_variance):
+        """Method to set matrices of state space model.
+
+        Parameters
+        ----------
+        transition_matrix : numpy.ndarray
+            State transition matrix
+        transition_covariance : numpy.ndarray
+            State transition covariance matrix.
+        observation_matrix : numpy.ndarray
+            Observation matrix.
+        observation_variance : numpy.ndarray
+            Observation variance.
+
+        Returns
+        -------
+        None.
+
+        """
         self.transition_matrix = transition_matrix
         self.transition_covariance = transition_covariance
         self.observation_matrix = observation_matrix
@@ -359,6 +501,19 @@ class SPKalmanFilter():
         self.nstate = np.int64(self.transition_matrix.shape[0])
 
     def get_mle(self, warmup=1):
+        """Method to calculate maximum likelihood estimate
+
+        Parameters
+        ----------
+        warmup : int, optional
+            Number of time steps to skip. The default is 1.
+
+        Returns
+        -------
+        mle : float
+            Maximum likelihood estimate.
+
+        """
         detfs = self.detfs[warmup:]
         sigmas = self.sigmas[warmup:]
         nobs = np.sum(self.observation_count[warmup:])
@@ -366,6 +521,25 @@ class SPKalmanFilter():
         return mle
 
     def get_projected(self, observation_matrix, method="smoother"):
+        """Method to get projected means and covariances
+
+        Parameters
+        ----------
+        observation_matrix : numpy.ndarray
+            Observation matrix for projecting states.
+        method : str, optional
+            If "filter", use Kalman filter to obtain estimates.
+            If "smoother", use Kalman smoother. The default is "smoother".
+
+        Returns
+        -------
+        projected_means : list
+            List of projected means for each time step.
+        projected_variances : list
+            List of projected variances for each time step.
+            Variances are diagonal elements of projected covariance matrix.
+
+        """
         if method == "filter":
             means = self.filtered_state_means
             covariances = self.filtered_state_covariances
@@ -383,6 +557,25 @@ class SPKalmanFilter():
         return (projected_means, projected_variances)
 
     def decompose_projected(self, observation_matrix, method="smoother"):
+        """Method to decompose projected means into
+        specific dynamic factors (sdf) and common dynamic factors (cdf)
+
+        Parameters
+        ----------
+        observation_matrix : numpy.ndarray
+            Observation matrix for projecting states.
+        method : str, optional
+            If "filter", use Kalman filter to obtain estimates.
+            If "smoother", use Kalman smoother. The default is "smoother".
+
+        Returns
+        -------
+        sdf_means : list
+            List of specific dynamic factors for each time step.
+        cdf_means : list
+            List of common dynamic factor(s) for each time step.
+
+        """
         if method == "filter":
             means = self.filtered_state_means
         else:
@@ -433,8 +626,8 @@ class SPKalmanFilter():
                     self.observation_indices[t, i] = obsid
 
     def run_smoother(self):
-        """Calculate smoothed state and projected estimates
-           (both mean and variance) using the Kalman smoother.
+        """Calculate smoothed state means and covariances
+        using the Kalman smoother.
         """
         # run Kalman filter to get filtered state estimates and covariances
         self.run_filter()
@@ -451,11 +644,8 @@ class SPKalmanFilter():
         self.smoothed_state_covariances = smoothed_state_covariances
 
     def run_filter(self, initial_state_mean=None,
-                   initial_state_covariance=None,
-                   warmup=1):
-        """
-        Apply the Kalman Filter at time :math:`t = [0,...,N]`
-        given observations up to and including time `t`.
+                   initial_state_covariance=None):
+        """Method to run the Kalman Filter.
 
         This is a sequential processing implementation of the Kalman filter
         requiring a diagonal observation error covariance matrix.
@@ -464,25 +654,23 @@ class SPKalmanFilter():
         and observation_indices containing the corresponding indices
         of those observations used to select the appropriate rows
         from observation_matrix and observation_variance.
-        These arrays have been constructed with self.initialize()
+        These arrays have been constructed with self.set_observations()
 
         Parameters
         ----------
-        initial_state_mean : array [n_dim_state]
-            state vector for initializing Kalman filter
-        initial_state_covariance : array [n_dim_state, n_dim_state]
-            state covariance matrix for initializing Kalman filter
+        initial_state_mean : array_like
+            state vector for initializing Kalman filter.
+        initial_state_covariance : array_like
+            state covariance matrix for initializing Kalman filter.
 
         Returns
         -------
-        sigmas : list [n_timesteps]
-            scaling variance :math:`\\sigma_{*}^{2}=\\nu_{t}F_{t}\\nu_{t}^{T}`
-        detfs : list [n_timesteps]
-            determinant of innovation covariance :math:`|F_{t}|`
-        nobs : list [n_timesteps]
-            number of observations for each time step
+        None.
 
         """
+
+        if self.mask:
+            logger.info("Running Kalman filter with masked observations.")
 
         if initial_state_mean is None:
             initial_state_mean = np.zeros(self.nstate)

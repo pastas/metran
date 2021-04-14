@@ -2,10 +2,12 @@
 """
 
 from logging import getLogger
-
 import numpy as np
 import scipy.optimize as scopt
+from pastas.utils import initialize_logger
 
+logger = getLogger(__name__)
+initialize_logger(logger)
 
 class FactorAnalysis:
     """Class that performs a factor analysis for the Pastas Metran model.
@@ -31,7 +33,6 @@ class FactorAnalysis:
 
     def __init__(self, oseries, maxfactors=None):
 
-        self.logger = getLogger(__name__)
         self.oseries = oseries
         self.maxfactors = maxfactors
 
@@ -67,14 +68,14 @@ class FactorAnalysis:
         try:
             nfactors, _ = self._maptest(correlation,
                                                 eigvec, self.eigval)
-            nfactors = max(nfactors, 1)
             if self.maxfactors is not None:
                 nfactors = min(nfactors, self.maxfactors)
         except:
-            nfactors = 1
+            nfactors = 0
         factors = self._minres(correlation, nfactors)
 
-        if (factors is not None) and (np.count_nonzero(factors) > 0):
+        if ((nfactors > 0) and (factors is not None)
+            and (np.count_nonzero(factors) > 0)):
             # factors is not None and does not contain nonzero elements
             if nfactors > 1:
                 # perform varimax rotation
@@ -99,19 +100,16 @@ class FactorAnalysis:
 
             self.factors = np.matrix(factors[:, :nfactors])
 
-            msg = "Number of factors according to Velicer\'s MAP test: " + \
-                  f"{nfactors}"
-            self.logger.info(msg)
+            msg = "Number of factors according to Velicer\'s MAP test: " \
+                  + f"{nfactors}"
+            logger.info(msg)
 
-            fep = 100 * np.sum(self.get_eigval_weight()[:nfactors])
-            msg = "Percentage explained by these factors:: " + \
-                  f"{fep}"
-            self.logger.info(msg)
+            self.fep = 100 * np.sum(self.get_eigval_weight()[:nfactors])
 
         else:
-            msg = "Metran: factor analysis did not result in proper " + \
-                  "common factors and calcutions have been interupted."
-            self.logger.error(msg)
+            msg = "No proper common factors can be derived from series."
+            raise Exception(msg)
+            self.factors = None
 
         return self.factors
 
@@ -396,7 +394,7 @@ class FactorAnalysis:
         if isinstance(eigval[0], np.complex128):
             msg = "Metran: Correlation matrix has " + \
                   "complex eigenvalues and eigenvectors."
-            self.logger.error(msg)
+            logger.error(msg)
             return
 
         # sort eigenvalues and eigenvectors
