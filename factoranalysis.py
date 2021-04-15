@@ -10,13 +10,12 @@ logger = getLogger(__name__)
 initialize_logger(logger)
 
 class FactorAnalysis:
-    """Class that performs a factor analysis for the Pastas Metran model.
+    """Class to perform a factor analysis for the Pastas Metran model.
 
     Parameters
     ----------
-    oseries: pandas.DataFrame
-        pandas DataFrame object containing the time series. The
-        series can be non-equidistant.
+    maxfactors : int, optional.
+        maximum number of factors to select. The default is None.
 
     Returns
     -------
@@ -26,20 +25,44 @@ class FactorAnalysis:
     --------
     A minimal working example of the FactorAnalysis class is shown below:
 
-    >>> fa = FactorAnalysis(oseries)
-    >>> factors = fa.solve()
+    >>> fa = FactorAnalysis()
+    >>> factors = fa.solve(oseries)
 
     """
 
-    def __init__(self, oseries, maxfactors=None):
-
-        self.oseries = oseries
+    def __init__(self, maxfactors=None):
         self.maxfactors = maxfactors
 
     def get_specificity(self):
+        """Method to get for each series the fraction
+        that is explained by the specific dynamic factor.
+        The specificity is equal to (1 - communality).
+
+        Returns
+        -------
+        list
+            For each series the specificity, a value between 0 and 1.
+            A value of 0 means that the series has all variation
+            in common with other series. A value of 1 means that the
+            series has no variation in common.
+
+        """
         return [1 - c for c in self.get_communality()]
 
     def get_communality(self):
+        """Method to get for each series the fraction
+        that is explained by the common dynamic factor(s).
+        The communality is equal to (1 - specificity).
+
+        Returns
+        -------
+        list
+            For each series the communality, a value between 0 and 1.
+            A value of 0 means that the series has no variation
+            in common with other series. A value of 1 means that the
+            series has all variation in common.
+
+        """
         communality = []
         dim = self.factors.shape[0]
         for n in range(dim):
@@ -47,22 +70,43 @@ class FactorAnalysis:
         return communality
 
     def get_eigval_weight(self):
-        return self.eigval / np.sum(self.eigval)
-
-    def solve(self):
-        """Factor analysis Performs factor analysis using minres algorithm.
-        Number of eigenvalues is determined by MAP test. If more than one
-        eigenvalue is used, the factors are rotated using orthogonal rotation.
-
-        Parameters
-        ----------
+        """Method to get the relative weight of each eigenvalue.
 
         Returns
         -------
-        """
+        numpy.ndarray
+            All eigenvalues as a fraction of the sum of eigenvalues.
 
-        correlation = self.get_correlations()
-        self.eigval, eigvec = self.get_eigval(correlation)
+        """
+        return self.eigval / np.sum(self.eigval)
+
+    def solve(self, oseries):
+        """Method to perform factor analysis.
+
+        Factor analysis is based on the minres algorithm.
+        The number of eigenvalues is determined by MAP test.
+        If more than one eigenvalue is used,
+        the factors are rotated using orthogonal rotation.
+
+        Parameters
+        ----------
+        oseries : pandas.DataFrame
+            Object containing the time series. The
+            series can be non-equidistant.
+
+        Raises
+        ------
+        Exception
+            If no proper factors can be derived from the series.
+
+        Returns
+        -------
+        factors : numpy.ndarray
+            Factor loadings.
+
+        """
+        correlation = self._get_correlations(oseries)
+        self.eigval, eigvec = self._get_eigval(correlation)
 
         # Velicer's MAP test
         try:
@@ -115,23 +159,23 @@ class FactorAnalysis:
 
     @staticmethod
     def _rotate(phi, gamma=1, maxiter=20, tol=1e-6):
-        """Rotate factor loadings using varimax, quartimax, equamax, or
-        parsimax rotation.
+        """Internal method to rotate factor loadings
+        using varimax, quartimax, equamax, or parsimax rotation.
 
         Parameters
         ----------
-        phi : 2-dimensional array [nvar, nfac]
-            eigenvectors to be rotated
+        phi : numpy.ndarray
+            Eigenvectors to be rotated
         gamma : float, optional
-            coefficient for rotation
-            varimax: gamma = 1
-            quartimax: gamma = 0
-            equamax: gamma = nfac/2
-            parsimax: gamma = nvar(nfac - 1)/(nvar + nfac - 2)
-        maxiter : integer
-            maximum number of iterations
-        tol : float
-            stop criterion
+            Coefficient for rotation. The default is 1.
+            Varimax: gamma = 1.
+            Quartimax: gamma = 0.
+            Equamax: gamma = nfac/2.
+            Parsimax: gamma = nvar(nfac - 1)/(nvar + nfac - 2).
+        maxiter : integer, optional
+            Maximum number of iterations. The default is 20.
+        tol : float, optional
+            Stop criterion. The default is 1e-6.
 
         Returns
         -------
@@ -142,6 +186,7 @@ class FactorAnalysis:
         ----------
         Kaiser, H.F. (1958): The varimax criterion for analytic rotation in
         factor analysis. Psychometrika 23: 187–200.
+
         """
         p, k = phi.shape
         R = np.eye(k)
@@ -159,27 +204,27 @@ class FactorAnalysis:
                 break
 
         phi_rot = np.dot(phi, R)
-
         return phi_rot
 
     def _minres(self, s, nf, covar=False):
-        """Minimum residuals (minres) algorithm for estimating factor loadings.
+        """Internal method for estimating factor loadings
+        using the minimum residuals (minres) algorithm.
 
         Parameters
         ----------
-        s : array
-            correlation matrix
+        s : numpy.ndarray
+            Correlation matrix
         nf : integer
-            number of factors
+            Number of factors
         covar : boolean
             True if S is covar
 
         Returns
         -------
-        loadings : array
-            estimated factor loadings
-        """
+        loadings : numpy.ndarray
+            Estimated factor loadings
 
+        """
         sorg = np.copy(s)
         try:
             ssmc = 1 - 1 / np.diag(np.linalg.inv(s))
@@ -204,24 +249,27 @@ class FactorAnalysis:
 
     @staticmethod
     def _maptest(cov, eigvec, eigval):
-        """Velicer's MAP test.
+        """Internal method to run Velicer's MAP test
+        to determine the number of factors to be used.
+
+        This method includes two variations
+        of the MAP test: the orginal and the revised MAP test.
 
         Parameters
         ----------
-        cov : array
-            covariance matrix
-        eigvec : array
-            matrix with columns eigenvectors associated with eigenvalues
-        eigval : array
-            vector with eigenvalues in descending order
+        cov : numpy.ndarray
+            Covariance matrix.
+        eigvec : numpy.ndarray
+            Matrix with columns eigenvectors associated with eigenvalues.
+        eigval : numpy.ndarray
+            Vector with eigenvalues in descending order.
 
         Returns
         -------
         nfacts : integer
-            number factors according to MAP test
+            Number factors according to MAP test.
         nfacts4 : integer
-            number factors according to revised MAP test
-
+            Number factors according to revised MAP test.
 
         References
         ----------
@@ -239,6 +287,7 @@ class FactorAnalysis:
         of factors or components. Pp. 41-71 in R. D. Goffin and
         E. Helmes, eds., Problems and solutions in human assessment.
         Boston: Kluwer.
+
         """
 
         nvars = len(eigval)
@@ -277,28 +326,27 @@ class FactorAnalysis:
             if fm4[s, 1] < minfm4:
                 minfm4 = fm4[s, 1]
                 nfacts4 = s
-
         return nfacts, nfacts4
 
     @staticmethod
     def _minresfun(psi, s, nf):
-        """Function to be minimized in minimum residuals (minres) algorithm.
+        """Function to be minimized
+        in minimum residuals (minres) algorithm.
 
         Parameters
         ----------
         psi : array
-            vector to be adjusted during optimization
+            Vector to be adjusted during optimization
         s : array
-            correlation matrix
+            Correlation matrix
         nf : integer
-            number of factors
+            Number of factors
 
         Returns
         -------
         obj : array
             objective function defined as sum of residuals
         """
-
         s2 = np.copy(s)
         np.fill_diagonal(s2, 1 - psi)
         eigval, eigvec = np.linalg.eigh(s2)
@@ -315,22 +363,23 @@ class FactorAnalysis:
         return np.sum(residual)
 
     def _minresgrad(self, psi, s, nf):
-        """Jacobian of function to be minimized in minimum residuals (minres)
-        algorithm.
+        """Internal method to calculate jacobian of function
+        to be minimized in minimum residuals (minres) algorithm.
 
         Parameters
         ----------
         psi : array
-            vector to be adjusted during optimization
+            Vector to be adjusted during optimization.
         s : array
-            correlation matrix
+            Correlation matrix.
         nf : integer
-            number of factors
+            Number of factors.
 
         Returns
         -------
         jac : array
-            jacobian of minresfun
+            Jacobian of minresfun.
+
         """
 
         load = self._get_loadings(psi, s, nf)
@@ -341,22 +390,23 @@ class FactorAnalysis:
 
     @staticmethod
     def _get_loadings(psi, s, nf):
-        """Estimate matrix of factor loadings based on minimum residuals
-        (minres) algorithm.
+        """Internal method to estimate matrix of factor loadings
+        based on minimum residuals (minres) algorithm.
 
         Parameters
         ----------
-        psi : array [nf]
-            communality estimate
-        s : array
-            correlation matrix
+        psi : numpy.ndarray
+            Communality estimate.
+        s : numpy.ndarray
+            Correlation matrix.
         nf : integer
-            number of factors
+            Number of factors.
 
         Returns
         -------
-        load : array
-            estimated factor loadings
+        load : npumy.ndarray
+            Estimated factor loadings.
+
         """
         sc = np.diag(1 / np.sqrt(psi))
         sstar = np.dot(sc, np.dot(s, sc))
@@ -364,45 +414,63 @@ class FactorAnalysis:
         L = eigvec[:, :nf]
         load = np.dot(L, np.diag(np.sqrt(np.maximum(
             np.subtract(eigval[:nf], 1), 0))))
-
         load = np.dot(np.diag(np.sqrt(psi)), load)
-
         return load
 
-    def get_correlations(self, oseries=None):
-        """Method to get correlations of multivariate series.
+    @staticmethod
+    def _get_correlations(oseries):
+        """Internal method to calculate correlations
+        for multivariate series.
 
         Parameters
         ----------
-        oseries : pandas DataFrame, optional
-            multivariate series
+        oseries : pandas.DataFrame
+            Multivariate series
 
         Returns
         -------
-        corr : numpy ndarray
-            correlation matrix
-        """
-        if oseries is None:
-            oseries = self.oseries
-        corr = np.array(oseries.corr())
+        corr : numpy.ndarray
+            Correlation matrix
 
+        """
+        corr = np.array(oseries.corr())
         return corr
 
-    def get_eigval(self, correlation):
+    @staticmethod
+    def _get_eigval(correlation):
+        """Internal method to get eigenvalues and eigenvectors
+        based on correlation matrix.
+
+        Parameters
+        ----------
+        correlation : numpy.ndarray
+            Correlation matrix for which eigenvalues
+            and eigenvectors need to be derived.
+
+        Raises
+        ------
+        Exception
+            If method results in complex eigenvalues and eigenvectors.
+
+        Returns
+        -------
+        eigval : numpy.ndarray
+            Vector with eigenvalues.
+        eigvec : numpy.ndarray
+            Matrix with eigenvectors.
+
+        """
         # perform eigenvalue decomposition
         eigval, eigvec = np.linalg.eig(correlation)
         if isinstance(eigval[0], np.complex128):
-            msg = "Metran: Correlation matrix has " + \
-                  "complex eigenvalues and eigenvectors."
-            logger.error(msg)
-            return
-
+            msg = "Serial correlation matrix has " + \
+                  "complex eigenvalues and eigenvectors. " + \
+                  "Factors cannot be estimated for these series."
+            raise Exception(msg)
         # sort eigenvalues and eigenvectors
         evals_order = np.argsort(-eigval)
         eigval = eigval[evals_order]
         eigval[eigval < 0] = 0.
         eigvec = eigvec[:, evals_order]
-
         eigvec = np.matrix(np.dot(eigvec, np.sqrt(np.diag(eigval))))
-
         return eigval, eigvec

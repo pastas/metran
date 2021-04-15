@@ -7,14 +7,13 @@ import numpy as np
 from pandas import DataFrame, Series, DatetimeIndex, \
     Timedelta, Timestamp, concat
 
-from pastas.decorators import set_parameter
 from pastas.timeseries import TimeSeries
 from pastas.utils import validate_name, initialize_logger
 from pastas.version import __version__
 
 from factoranalysis import FactorAnalysis
 from kalmanfilter import SPKalmanFilter
-from solver import LmfitSolve
+from solver import ScipySolve
 
 logger = getLogger(__name__)
 initialize_logger(logger)
@@ -189,8 +188,8 @@ class Metran:
         None.
 
         """
-        fa = FactorAnalysis(oseries)
-        self.factors = fa.solve()
+        fa = FactorAnalysis()
+        self.factors = fa.solve(oseries)
         self.eigval = fa.eigval
         if self.factors is not None:
             self.nfactors = self.factors.shape[1]
@@ -565,6 +564,7 @@ class Metran:
         mle: float
             Maximum likelihood estimate.
         """
+        p = Series(p, index=self.parameters.index)
         self.kf.set_matrices(*self._get_matrices(p))
         self.kf.run_filter()
         mle = self.kf.get_mle()
@@ -891,8 +891,8 @@ class Metran:
         Parameters
         ----------
         solver: metran.solver.BaseSolver class, optional
-            Class used to solve the model. Currently only ps.LmfitSolve
-            is available. A class is needed, not an instance
+            Class used to solve the model. Options are: mt.ScipySolve
+            (default) or mt.LmfitSolve. A class is needed, not an instance
             of the class!
         report: bool, optional
             Print reports to the screen after optimization finished. This
@@ -923,19 +923,20 @@ class Metran:
         # Store the solve instance
         if solver is None:
             if self.fit is None:
-                self.fit = LmfitSolve(mt=self)
+                self.fit = ScipySolve(mt=self)
         elif not issubclass(solver, self.fit.__class__):
             self.fit = solver(mt=self)
 
         self.settings["solver"] = self.fit._name
 
         # Solve model
-        success, self.params = self.fit.solve(**kwargs)
+        success, optimal, stderr = self.fit.solve(**kwargs)
 
-        self.parameters["optimal"] = np.array([p.value
-                                               for p in self.params.values()])
-        self.parameters["stderr"] = np.array([p.stderr
-                                              for p in self.params.values()])
+        self.parameters["optimal"] = optimal
+        self.parameters["stderr"] = stderr
+
+        if not success:
+            logger.warning("Model parameters could not be estimated well.")
 
         if report:
             if isinstance(report, str):
@@ -996,15 +997,13 @@ class Metran:
             "tmin": str(self.settings["tmin"]),
             "tmax": str(self.settings["tmax"]),
             "freq": self.settings["freq"],
-            "warmup": str(self.settings["warmup"]),
             "solver": self.settings["solver"]
         }
 
         fit = {
-            "Obj": "{:.2f}".format(self.fit.obj_func),
+            "obj": "{:.2f}".format(self.fit.obj_func),
             "nfev": self.fit.nfev,
             "AIC": "{:.2f}".format(self.fit.aic),
-            "BIC": "{:.2f}".format(self.fit.bic),
             "": ""
         }
 

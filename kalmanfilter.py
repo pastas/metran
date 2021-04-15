@@ -361,8 +361,7 @@ def seqkalmanfilter(observations, transition_matrix, transition_covariance,
 def kalmansmoother(filtered_state_means, filtered_state_covariances,
                    predicted_state_means, predicted_state_covariances,
                    transition_matrix):
-    """
-    Apply the Kalman Smoother
+    """Method to run the Kalman smoother
 
     Estimate the hidden state at time for each time step given all
     observations.
@@ -453,9 +452,6 @@ class SPKalmanFilter():
 
         if engine == "numpy" or "numba" not in sys.modules:
             self.filtermethod = seqkalmanfilter_np
-            if engine == "numba":
-                logger.warning("Numba is not installed. Installing Numba is "
-                               "recommended for significant speed-ups.")
         else:
             self.filtermethod = seqkalmanfilter
 
@@ -601,7 +597,7 @@ class SPKalmanFilter():
 
         Returns
         -------
-        None
+        None.
         """
         self.oseries_index = oseries.index
         observations_masked = np.ma.array(oseries,
