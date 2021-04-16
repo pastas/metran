@@ -1,6 +1,7 @@
 """This module contains the FactorAnalysis class for Metran in Pastas."""
 
 from logging import getLogger
+
 import numpy as np
 import scipy.optimize as scopt
 from pastas.utils import initialize_logger

@@ -2,9 +2,10 @@
 filtering and smoothing methods."""
 
 import sys
+from logging import getLogger
+
 import numpy as np
 from pastas.decorators import njit
-from logging import getLogger
 from pastas.utils import initialize_logger
 
 logger = getLogger(__name__)

@@ -4,16 +4,15 @@ from logging import getLogger
 from os import getlogin
 
 import numpy as np
-from pandas import DataFrame, Series, DatetimeIndex, \
-    Timedelta, Timestamp, concat
-
+from pandas import (DataFrame, DatetimeIndex, Series, Timedelta, Timestamp,
+                    concat)
 from pastas.timeseries import TimeSeries
-from pastas.utils import validate_name, initialize_logger
+from pastas.utils import initialize_logger, validate_name
 from pastas.version import __version__
 
-from factoranalysis import FactorAnalysis
-from kalmanfilter import SPKalmanFilter
-from solver import ScipySolve
+from .factoranalysis import FactorAnalysis
+from .kalmanfilter import SPKalmanFilter
+from .solver import ScipySolve
 
 logger = getLogger(__name__)
 initialize_logger(logger)
