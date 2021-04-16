@@ -140,7 +140,7 @@ class FactorAnalysis:
                         if np.sign(factors[i, j]) != 0:
                             factors[i, j] = -1. * factors[i, j]
 
-            self.factors = np.matrix(factors[:, :nfactors])
+            self.factors = np.atleast_2d(factors[:, :nfactors])
 
             msg = "Number of factors according to Velicer\'s MAP test: " \
                   + f"{nfactors}"
@@ -296,7 +296,7 @@ class FactorAnalysis:
                 / (nvars * (nvars - 1))))
 
         for m in range(nvars - 1):
-            biga = np.matrix(eigvec[:, :m + 1])
+            biga = np.atleast_2d(eigvec[:, :m + 1])
             partcov = cov - np.dot(biga, biga.T)
             # exit function with nfacts=1 if diag partcov contains negatives
             if np.amin(np.diag(partcov)) < 0:
@@ -346,8 +346,8 @@ class FactorAnalysis:
         eigval, eigvec = np.linalg.eigh(s2)
         eigval[eigval < np.MachAr().eps] = 100 * np.MachAr().eps
         if nf > 1:
-            loadings = np.matrix(np.dot(eigvec[:, :nf],
-                                        np.diag(np.sqrt(eigval[:nf]))))
+            loadings = np.atleast_2d(np.dot(eigvec[:, :nf],
+                                            np.diag(np.sqrt(eigval[:nf]))))
         else:
             loadings = eigvec[:, 0] * np.sqrt(eigval[0])
         model = np.dot(loadings, loadings.T)
@@ -461,5 +461,5 @@ class FactorAnalysis:
         eigval = eigval[evals_order]
         eigval[eigval < 0] = 0.
         eigvec = eigvec[:, evals_order]
-        eigvec = np.matrix(np.dot(eigvec, np.sqrt(np.diag(eigval))))
+        eigvec = np.atleast_2d(np.dot(eigvec, np.sqrt(np.diag(eigval))))
         return eigval, eigvec
