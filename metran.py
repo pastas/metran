@@ -18,6 +18,7 @@ from solver import ScipySolve
 logger = getLogger(__name__)
 initialize_logger(logger)
 
+
 class Metran:
     """Class for the Pastas Metran model.
 
@@ -81,8 +82,8 @@ class Metran:
         return self.nseries + self.nfactors
 
     def standardize(self, oseries):
-        """Mathod to standardize series by subtracting mean
-        and dividing by standard deviation.
+        """Mathod to standardize series by subtracting mean and dividing by
+        standard deviation.
 
         Parameters
         ----------
@@ -93,7 +94,6 @@ class Metran:
         -------
         pandas.DataFrame
             standardized series
-
         """
         std = oseries.std()
         mean = oseries.mean()
@@ -116,7 +116,6 @@ class Metran:
         -------
         pandas.DataFrame
             truncated series
-
         """
         if self.settings["tmin"] is None:
             tmin = oseries.index.min()
@@ -151,7 +150,6 @@ class Metran:
         Returns
         -------
         None.
-
         """
         if min_pairs is None:
             min_pairs = self.settings["min_pairs"]
@@ -162,13 +160,13 @@ class Metran:
         pairs = Series(index=oseries.columns)
         oseries["count"] = oseries.count(axis=1)
         for s in pairs.index:
-            pairs[s] = oseries.dropna(subset=[s,])["count"].count()
+            pairs[s] = oseries.dropna(subset=[s, ])["count"].count()
         oseries = oseries.drop(["count"], axis=1)
         if pairs.min() < max(min_pairs, 1):
             err = pairs[pairs < min_pairs].index.tolist()
             msg = "Number of cross-sectional data is less than " \
                 + str(min_pairs) + " for series " \
-                    + (', ').join([str(e) for e in err])
+                + (', ').join([str(e) for e in err])
             raise Exception(msg)
 
     def get_factors(self, oseries):
@@ -186,7 +184,6 @@ class Metran:
         Returns
         -------
         None.
-
         """
         fa = FactorAnalysis()
         self.factors = fa.solve(oseries)
@@ -200,8 +197,8 @@ class Metran:
             self.nfactors = 0
 
     def _init_kalmanfilter(self, oseries):
-        """Internal method to initialize Kalmanfilter
-        for sequential processing.
+        """Internal method to initialize Kalmanfilter for sequential
+        processing.
 
         Parameters
         ----------
@@ -211,14 +208,13 @@ class Metran:
         Returns
         -------
         None.
-
         """
         self.kf = SPKalmanFilter()
         self.kf.set_observations(oseries)
 
     def _phi(self, alpha):
-        """Internal method to calculate autoregressive model parameter
-        based on parameter alpha.
+        """Internal method to calculate autoregressive model parameter based on
+        parameter alpha.
 
         Parameters
         ----------
@@ -229,14 +225,12 @@ class Metran:
         -------
         float
             autoregressive model parameter
-
         """
         a = Timedelta(1, self.settings["freq"]) / Timedelta("1d")
         return np.exp(-a / alpha)
 
     def get_transition_matrix(self, p=None, initial=False):
-        """Method to get transition matrix
-        of the Metran dynamic factor model.
+        """Method to get transition matrix of the Metran dynamic factor model.
 
         Parameters
         ----------
@@ -250,7 +244,6 @@ class Metran:
         -------
         transition_matrix : numpy.ndarray
             Transition matrix
-
         """
         if p is None:
             p = self.get_parameters(initial)
@@ -266,8 +259,8 @@ class Metran:
         return transition_matrix
 
     def get_transition_covariance(self, p=None, initial=False):
-        """Method to get transition covariance matrix
-        of the Metran dynamic factor model.
+        """Method to get transition covariance matrix of the Metran dynamic
+        factor model.
 
         Parameters
         ----------
@@ -281,7 +274,6 @@ class Metran:
         -------
         transition_covariance : numpy.ndarray
             Transition covariance matrix
-
         """
         if p is None:
             p = self.get_parameters(initial)
@@ -294,12 +286,12 @@ class Metran:
             name = "cdf" + str(n + 1) + "_alpha"
             transition_covariance[self.nseries + n, self.nseries + n] = (
                 1 - self._phi(p[name]) ** 2
-                )
+            )
         return transition_covariance
 
     def get_transition_variance(self, p=None, initial=False):
-        """Method to extract diagonal of transition covariance matrix
-        to get the transition variance vector.
+        """Method to extract diagonal of transition covariance matrix to get
+        the transition variance vector.
 
         Parameters
         ----------
@@ -313,15 +305,13 @@ class Metran:
         -------
         transition_variance : numpy.ndarray
             Transition variance vector
-
         """
         if p is None:
             p = self.get_parameters(initial)
         return np.diag(self.get_transition_covariance(p))
 
     def get_observation_matrix(self, p=None, initial=False):
-        """Method to get observation matrix
-        of the Metran dynamic factor model.
+        """Method to get observation matrix of the Metran dynamic factor model.
 
         Parameters
         ----------
@@ -335,7 +325,6 @@ class Metran:
         -------
         observation_matrix : numpy.ndarray
             Observation matrix
-
         """
         if p is None:
             p = self.get_parameters(initial)
@@ -356,15 +345,14 @@ class Metran:
         -------
         observation_variance : numpy.ndarray
             Observation variance vector
-
         """
         (self.nseries, _) = self.factors.shape
         observation_variance = np.zeros(self.nseries, dtype=np.float64)
         return observation_variance
 
     def _get_matrices(self, p, initial=False):
-        """Internal method to get all matrices required to define
-        the Metran dynamic factor model.
+        """Internal method to get all matrices required to define the Metran
+        dynamic factor model.
 
         Parameters
         ----------
@@ -384,7 +372,6 @@ class Metran:
             Observation matrix.
         numpy.ndarray
             Observation variance vector.
-
         """
         return (self.get_transition_matrix(p, initial),
                 self.get_transition_covariance(p, initial),
@@ -404,7 +391,6 @@ class Metran:
         -------
         parameters: pandas.Series
             initial or optimal parameters.
-
         """
         if not(initial) and "optimal" in self.parameters:
             parameters = self.parameters["optimal"]
@@ -419,7 +405,6 @@ class Metran:
         Returns
         -------
         None.
-
         """
         pinit_alpha = 10
         for n in range(self.nfactors):
@@ -430,8 +415,8 @@ class Metran:
                 pinit_alpha, 1e-5, None, True, "sdf")
 
     def mask_observations(self, mask):
-        """Method to mask observations for processing
-        with Kalman filter or smoother.
+        """Method to mask observations for processing with Kalman filter or
+        smoother.
 
         This method does NOT change the oseries itself. It only
         masks (hides) observations while running the
@@ -448,7 +433,6 @@ class Metran:
         Returns
         -------
         None.
-
         """
         if mask.shape != self.oseries.shape:
             logger.error("Dimensions of mask " + str(mask.shape)
@@ -462,13 +446,11 @@ class Metran:
             self.kf.mask = True
 
     def unmask_observations(self):
-        """Method to unmask observation
-        and reset observations to self.oseries.
+        """Method to unmask observation and reset observations to self.oseries.
 
         Returns
         -------
         None.
-
         """
         oseries = self.oseries
         self.kf.init_states()
@@ -476,8 +458,8 @@ class Metran:
         self.kf.mask = False
 
     def set_observations(self, oseries):
-        """Method to rework oseries to pandas.DataFrame
-        for further use in Metran class.
+        """Method to rework oseries to pandas.DataFrame for further use in
+        Metran class.
 
         Parameters
         ----------
@@ -496,7 +478,6 @@ class Metran:
         Returns
         -------
         None.
-
         """
         # combine series to DataFrame
         if isinstance(oseries, (list, tuple)):
@@ -546,13 +527,11 @@ class Metran:
         -------
         pandas.DataFrame
             Time series.
-
         """
         return self.oseries
 
     def get_mle(self, p):
-        """Method to obtain maximum likelihood estimate
-        based on Kalman filter.
+        """Method to obtain maximum likelihood estimate based on Kalman filter.
 
         Parameters
         ----------
@@ -586,7 +565,6 @@ class Metran:
         state_means : pandas.DataFrame
             Filtered or smoothed states. Column names refer to
             specific dynamic factors (sdf) and common dynamic factors (cdf)
-
         """
         self._run_kalman(method, p=p)
         columns = ["sdf" + str(i + 1) for i in range(self.nseries)]
@@ -616,7 +594,6 @@ class Metran:
         state_variances : pandas.DataFrame
             Filtered or smoothed variances. Column names refer to
             specific dynamic factors (sdf) and common dynamic factors (cdf)
-
         """
         self._run_kalman(method, p=p)
         with np.errstate(invalid='ignore'):
@@ -656,7 +633,6 @@ class Metran:
             ith filtered or smoothed state (mean),
             optionally with 'lower' and 'upper' as
             lower and upper bounds of 95% confidence interval.
-
         """
         state = None
         if i < 0 or i >= self.nstate:
@@ -673,8 +649,8 @@ class Metran:
 
     def get_projected_means(self, p=None, standardized=False,
                             method="smoother"):
-        """Method to calculate projected means, which are the
-        filtered/smoothed estimates (means) for the observed series.
+        """Method to calculate projected means, which are the filtered/smoothed
+        estimates (means) for the observed series.
 
         Parameters
         ----------
@@ -693,7 +669,6 @@ class Metran:
         -------
         projected_means : pandas.DataFrame
             Filtered or smoothed estimates for observed series.
-
         """
         self._run_kalman(method, p=p)
         if standardized:
@@ -729,7 +704,6 @@ class Metran:
         -------
         projected_means : pandas.DataFrame
             Filtered or smoothed variances for observed series.
-
         """
         self._run_kalman(method, p=p)
         if standardized:
@@ -745,8 +719,8 @@ class Metran:
 
     def get_projection(self, name, p=None, ci=True, standardized=False,
                        method="smoother"):
-        """Method to calculate projected means for specific series,
-        optionally including 95% confidence interval.
+        """Method to calculate projected means for specific series, optionally
+        including 95% confidence interval.
 
         Parameters
         ----------
@@ -772,7 +746,6 @@ class Metran:
             filtered or smoothed estimate (mean) for series 'name',
             optionally with 'lower' and 'upper' as
             lower and upper bounds of 95% confidence interval.
-
         """
         proj = None
         means = self.get_projected_means(p=p, standardized=standardized,
@@ -793,9 +766,9 @@ class Metran:
 
     def decompose_projection(self, name, p=None, standardized=False,
                              method="smoother"):
-        """Method to decompose filtered/smoothed estimate
-        for observed series into specific dynamic component (sdf) and
-        the sum of common dynamic components (cdf)
+        """Method to decompose filtered/smoothed estimate for observed series
+        into specific dynamic component (sdf) and the sum of common dynamic
+        components (cdf)
 
         Parameters
         ----------
@@ -817,7 +790,6 @@ class Metran:
         df : pandas.DataFrame
             DataFrame with specific and common dynamic component
             for series with name 'name'.
-
         """
         df = None
         self._run_kalman(method, p=p)
@@ -850,7 +822,7 @@ class Metran:
         """
         scale = self.oseries_std
         observation_matrix = self.get_observation_matrix()
-        np.fill_diagonal(observation_matrix[:,:self.nseries], scale)
+        np.fill_diagonal(observation_matrix[:, :self.nseries], scale)
         for i in range(self.nfactors):
             observation_matrix[:, self.nseries + i] = \
                 np.multiply(scale, observation_matrix[:, self.nseries + i])
@@ -870,7 +842,6 @@ class Metran:
         Returns
         -------
         None.
-
         """
         if method == "filter":
             if p is not None:
@@ -910,7 +881,6 @@ class Metran:
           correlation matrix (mt.fit.pcor).
         - The solver returns a number of results after optimization. These
           are stored in mt.fit.result and can be accessed from there.
-
         """
 
         # Perform factor analysis to get factors
@@ -953,7 +923,6 @@ class Metran:
         -------
         file_info: dict
             dictionary with file information.
-
         """
         # Check if file_info already exists
         if hasattr(self, "file_info"):
@@ -991,7 +960,6 @@ class Metran:
         also be called on its own::
 
         >>> print(mt.fit_report())
-
         """
         model = {
             "tmin": str(self.settings["tmin"]),
@@ -1023,8 +991,9 @@ class Metran:
         w = max(width - 44, 0)
         header = "Fit report {name:<16}{string}Fit Statistics\n" \
                  "{line}\n".format(name=self.name[:14],
-                     string=string.format("", fill=' ', align='>', width=w),
-                     line=string.format("", fill='=', align='>', width=width))
+                                   string=string.format(
+                                       "", fill=' ', align='>', width=w),
+                                   line=string.format("", fill='=', align='>', width=width))
 
         basic = ""
         w = max(width - 45, 0)
@@ -1035,9 +1004,9 @@ class Metran:
         # Create the parameters block
         parameters = "\nParameters ({n_param} were optimized)\n{line}\n" \
                      "{parameters}".format(n_param=parameters.vary.sum(),
-                         line=string.format("", fill='=', align='>',
-                                            width=width),
-                         parameters=parameters)
+                                           line=string.format("", fill='=', align='>',
+                                                              width=width),
+                                           parameters=parameters)
 
         if output == "full":
             cor = {}
@@ -1045,7 +1014,7 @@ class Metran:
             for idx in pcor:
                 for col in pcor:
                     if ((np.abs(pcor.loc[idx, col]) > 0.5) and (idx != col)
-                        and ((col, idx) not in cor.keys())):
+                            and ((col, idx) not in cor.keys())):
                         cor[(idx, col)] = pcor.loc[idx, col].round(2)
 
             cor = DataFrame(data=cor.values(), index=cor.keys(),
@@ -1139,10 +1108,11 @@ class Metran:
         # # Create the first header with results factor analysis
         w = max(width - 43, 0)
         header = "Metran report {name:<14}{string}Factor Analysis\n" \
-                  "{line}\n".format(name=self.name[:14],
-                      string=string.format("", fill=' ', align='>', width=w),
-                      line=string.format("", fill='=', align='>',
-                                         width=width))
+            "{line}\n".format(name=self.name[:14],
+                              string=string.format(
+                                  "", fill=' ', align='>', width=w),
+                              line=string.format("", fill='=', align='>',
+                                                 width=width))
 
         factors = ""
         for (val1, val2), (val3, val4) in zip(model.items(), fit.items()):
@@ -1152,9 +1122,9 @@ class Metran:
 
         # Create the transition block
         transition = "\nState parameters\n{line}\n" \
-                      "{transition}\n".format(line=string.format(
-                          "", fill='=',align='>', width=width),
-                          transition=transition)
+            "{transition}\n".format(line=string.format(
+                "", fill='=', align='>', width=width),
+                transition=transition)
 
         # Create the observation block
         observation = "\nObservation parameters\n{line}\n" \
@@ -1174,7 +1144,7 @@ class Metran:
             for idx in pcor:
                 for col in pcor:
                     if ((np.abs(pcor.loc[idx, col]) > 0.5) and (idx != col)
-                        and ((col, idx) not in cor.keys())):
+                            and ((col, idx) not in cor.keys())):
                         cor[(idx, col)] = pcor.loc[idx, col].round(2)
 
             cor = DataFrame(data=cor.values(), index=cor.keys(),
@@ -1185,8 +1155,8 @@ class Metran:
                 cor = "None"
             correlations = "\nState correlations |rho| > 0.5\n{}" \
                            "\n{}\n".format(string.format("", fill='=',
-                                                       align='>',
-                                                       width=width), cor)
+                                                         align='>',
+                                                         width=width), cor)
         else:
             correlations = ""
 

@@ -55,18 +55,15 @@ class BaseSolver:
         -------
         obj : float
             Objective function value.
-
         """
         if callback is not None:
             p = callback(p)
         obj = self.mt.get_mle(p)
         return obj
 
-
     def _get_covariance(self, x0, f, callback, epsilon=None, diff="forward"):
-        """Estimate covariance matrix of parameter estimates
-        using a numerical approximation to the Hessian matrix of cost
-        function at location x0.
+        """Estimate covariance matrix of parameter estimates using a numerical
+        approximation to the Hessian matrix of cost function at location x0.
 
         Parameters
         ----------
@@ -91,7 +88,6 @@ class BaseSolver:
         -------
         cov : numpy.ndarray
             covariance matrix of parameter estimates
-
         """
         n = x0.shape[0]
         if epsilon is None:
@@ -99,7 +95,7 @@ class BaseSolver:
             epsilon = EPS ** (1. / 4)
 
         cov_ok = False
-        while not(cov_ok or epsilon > 1000. * epsilon) :
+        while not(cov_ok or epsilon > 1000. * epsilon):
             # allocate space for the hessian
             hessian = np.zeros((n, n))
             # the next loop fill the hessian matrix
@@ -178,7 +174,6 @@ class BaseSolver:
         -------
         out : numpy.ndarray
            Nearest Positive Semi-Definite matrix of A.
-
         """
         n = A.shape[0]
         eigval, eigvec = np.linalg.eig(A)
@@ -213,7 +208,6 @@ class ScipySolve(BaseSolver):
     References
     ----------
     .. [scipy_ref] https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
-
     """
     _name = "ScipySolve"
 
@@ -237,7 +231,6 @@ class ScipySolve(BaseSolver):
             True if optimization routine terminated successfully.
         params : lmfit.Parameters instance
             Ordered dictionary of Parameter objects.
-
         """
 
         # Deal with the parameters
@@ -288,7 +281,7 @@ class ScipySolve(BaseSolver):
         return success, optimal, stderr
 
     def _array_todict(self, p):
-        """Update parameter dictionary with array of varying parameters
+        """Update parameter dictionary with array of varying parameters.
 
         Parameters
         ----------
@@ -299,7 +292,6 @@ class ScipySolve(BaseSolver):
         -------
         dict
             Model parameters as input for objective function
-
         """
         par = self.initial
         par[self.vary] = p
@@ -327,7 +319,6 @@ class LmfitSolve(BaseSolver):
     References
     ----------
     .. [LM] https://github.com/lmfit/lmfit-py/
-
     """
     _name = "LmfitSolve"
 
@@ -365,7 +356,6 @@ class LmfitSolve(BaseSolver):
             True if optimization routine terminated successfully.
         params : lmfit.Parameters instance
             Ordered dictionary of Parameter objects.
-
         """
 
         # Deal with the parameters
@@ -405,10 +395,9 @@ class LmfitSolve(BaseSolver):
                 stderr = np.sqrt(np.diag(pcov))
         if pcov is None:
                 # calculate covariance matrix using finite differences
-                pcov = self._get_covariance(optimal, self.objfunction,
-                                            self._array_todict)
+            pcov = self._get_covariance(optimal, self.objfunction,
+                                        self._array_todict)
         stderr[self.vary] = np.sqrt(np.diag(pcov))
-
 
         names = self.result.var_names
         self.pcov = DataFrame(pcov, index=names, columns=names)
@@ -427,7 +416,7 @@ class LmfitSolve(BaseSolver):
         return success, optimal, stderr
 
     def _lmfit_todict(self, p):
-        """Convert lmfit.Parameter instance to dictionary
+        """Convert lmfit.Parameter instance to dictionary.
 
         Parameters
         ----------
@@ -438,12 +427,11 @@ class LmfitSolve(BaseSolver):
         -------
         dict
             Model parameters as input for objective function
-
         """
         return p.valuesdict()
 
     def _array_todict(self, p):
-        """Update parameter dictionary with array of varying parameters
+        """Update parameter dictionary with array of varying parameters.
 
         Parameters
         ----------
@@ -454,7 +442,6 @@ class LmfitSolve(BaseSolver):
         -------
         dict
             Model parameters as input for objective function
-
         """
         par = self.initial
         par[self.vary] = p
