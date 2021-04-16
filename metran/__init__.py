@@ -1,5 +1,3 @@
-from . import factoranalysis
-from . import kalmanfilter
-from . import metran
-from . import solver
+from . import factoranalysis, kalmanfilter, metran, solver
 from .metran import Metran
+from .version import __version__
