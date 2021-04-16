@@ -156,7 +156,7 @@ class Metran:
             logger.warning("min_pairs must be greater than 0.")
         if oseries is None:
             oseries = self.oseries.copy()
-        pairs = Series(index=oseries.columns)
+        pairs = Series(index=oseries.columns, dtype=int)
         oseries["count"] = oseries.count(axis=1)
         for s in pairs.index:
             pairs[s] = oseries.dropna(subset=[s, ])["count"].count()
