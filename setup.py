@@ -40,8 +40,6 @@ setup(
                       'pandas>=1.0',
                       'scipy>=1.1',
                       'numba',
-                      'lmfit>=1.0.0',
-                      'pastas>=0.16.0'
-                      ],
+                      'pastas>=0.16.0'],
     packages=find_packages(exclude=[]),
 )
