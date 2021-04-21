@@ -329,6 +329,7 @@ class LmfitSolve(BaseSolver):
             import lmfit as lmfit
         except ImportError:
             msg = "lmfit not installed. Please install lmfit first."
+            logger.error(msg)
             raise ImportError(msg)
 
         self.mt = mt

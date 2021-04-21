@@ -149,8 +149,8 @@ class FactorAnalysis:
             self.fep = 100 * np.sum(self.get_eigval_weight()[:nfactors])
 
         else:
-            msg = "No proper common factors can be derived from series."
-            raise Exception(msg)
+            msg = "No proper common factors could be derived from series."
+            logger.warning(msg)
             self.factors = None
 
         return self.factors
@@ -455,6 +455,7 @@ class FactorAnalysis:
             msg = "Serial correlation matrix has " + \
                   "complex eigenvalues and eigenvectors. " + \
                   "Factors cannot be estimated for these series."
+            logger.error(msg)
             raise Exception(msg)
         # sort eigenvalues and eigenvectors
         evals_order = np.argsort(-eigval)

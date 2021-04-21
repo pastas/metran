@@ -4,10 +4,13 @@ from logging import getLogger
 from os import getlogin
 
 import numpy as np
+from scipy.stats import norm
 from pandas import (DataFrame, DatetimeIndex, Series, Timedelta, Timestamp,
                     concat)
+from pandas.tseries.frequencies import to_offset
 from pastas.timeseries import TimeSeries
-from pastas.utils import initialize_logger, validate_name
+from pastas.utils import (initialize_logger, validate_name,
+                          frequency_is_supported)
 from pastas.version import __version__
 
 from .factoranalysis import FactorAnalysis
@@ -28,6 +31,10 @@ class Metran:
         The series can be non-equidistant.
     name: str, optional
         String with the name of the model. The default is 'Cluster'
+    freq: str, optional
+        String with the frequency the stressmodels are simulated. Must
+        be one of the following (D, h, m, s, ms, us, ns) or a multiple of
+        that e.g. "7D".
     tmin: str, optional
         String with a start date for the simulation period (E.g. '1980').
         If none is provided, the tmin from the oseries is used.
@@ -41,7 +48,8 @@ class Metran:
         Metran instance.
     """
 
-    def __init__(self, oseries, name='Cluster', tmin=None, tmax=None):
+    def __init__(self, oseries, name='Cluster', freq=None,
+                 tmin=None, tmax=None):
         # Default settings
         self.settings = {
             "tmin": None,
@@ -56,6 +64,8 @@ class Metran:
             self.settings["tmin"] = tmin
         if tmax is not None:
             self.settings["tmax"] = tmax
+        if freq is not None:
+            self.settings["freq"] = frequency_is_supported(freq)
 
         # Initialize and rework observations
         self.nfactors = 0
@@ -64,7 +74,8 @@ class Metran:
                                              'vary', 'name'])
         self.set_init_parameters()
 
-        # initialize attributes for solving
+        # initialize attributes
+        self.masked_observations = None
         self.fit = None
 
         self.name = validate_name(name)
@@ -166,6 +177,7 @@ class Metran:
             msg = "Number of cross-sectional data is less than " \
                 + str(min_pairs) + " for series " \
                 + (', ').join([str(e) for e in err])
+            logger.error(msg)
             raise Exception(msg)
 
     def get_factors(self, oseries):
@@ -182,7 +194,9 @@ class Metran:
 
         Returns
         -------
-        None.
+        factors : numpy.ndarray
+            Factor loadings as estimated using factor analysis
+
         """
         fa = FactorAnalysis()
         self.factors = fa.solve(oseries)
@@ -194,6 +208,8 @@ class Metran:
             self.fep = fa.fep
         else:
             self.nfactors = 0
+
+        return self.factors
 
     def _init_kalmanfilter(self, oseries):
         """Internal method to initialize Kalmanfilter for sequential
@@ -225,7 +241,7 @@ class Metran:
         float
             autoregressive model parameter
         """
-        a = Timedelta(1, self.settings["freq"]) / Timedelta("1d")
+        a = to_offset(self.settings["freq"]).delta / Timedelta(1, "D")
         return np.exp(-a / alpha)
 
     def get_transition_matrix(self, p=None, initial=False):
@@ -439,9 +455,9 @@ class Metran:
                          + str(self.oseries.shape)
                          + ". Mask cannot be applied.")
         else:
-            oseries = self.oseries.mask(mask.astype(bool))
+            self.masked_observations = self.oseries.mask(mask.astype(bool))
             self.kf.init_states()
-            self.kf.set_observations(oseries)
+            self.kf.set_observations(self.masked_observations)
             self.kf.mask = True
 
     def unmask_observations(self):
@@ -451,9 +467,9 @@ class Metran:
         -------
         None.
         """
-        oseries = self.oseries
+        self.masked_observations = None
         self.kf.init_states()
-        self.kf.set_observations(oseries)
+        self.kf.set_observations(self.oseries)
         self.kf.mask = False
 
     def set_observations(self, oseries):
@@ -490,9 +506,10 @@ class Metran:
                     elif isinstance(os, (Series, DataFrame)):
                         if isinstance(os, DataFrame):
                             if os.shape[1] > 1:
-                                raise Exception("One or more series have "
-                                                + "DataFrame with multiple "
-                                                + "columns")
+                                msg = "One or more series have " \
+                                    + "DataFrame with multiple columns"
+                                logger.error(msg)
+                                raise Exception(msg)
                             os = os.squeeze()
                         _oseries.append(os)
                         _names.append(os.name)
@@ -503,31 +520,52 @@ class Metran:
         elif isinstance(oseries, DataFrame):
             self.snames = oseries.columns
         else:
-            raise Exception("Input type should be either a "
-                            "list, tuple, or pandas.DataFrame")
+            msg = "Input type should be either a " \
+                + "list, tuple, or pandas.DataFrame"
+            logger.error(msg)
+            raise TypeError(msg)
 
         if oseries.shape[1] < 2:
-            raise Exception("Metran requires at least 2 series, "
-                            "found " + str(oseries.shape[1]))
+            msg = "Metran requires at least 2 series, found " \
+                + str(oseries.shape[1])
+            logger.error(msg)
+            raise Exception(msg)
 
         oseries = self.truncate(oseries)
         if type(oseries.index) == DatetimeIndex:
             oseries = oseries.asfreq("D")
             self.nseries = oseries.shape[1]
+            self.oseries_unstd = oseries
             self.oseries = self.standardize(oseries)
             self.test_cross_section()
         else:
-            raise Exception("Index of series must be DatetimeIndex")
+            msg = "Index of series must be DatetimeIndex"
+            logger.error(msg)
+            raise TypeError(msg)
 
-    def get_observations(self):
+    def get_observations(self, standardized=False, masked=False):
         """Returns series as available in Metran class.
+
+        Parameters
+        ----------
+        standardized : bool, optional
+            If True, obtain standardized observations. If False,
+            obtain unstandardized observations. The default is False.
+        masked : boolean
+            If True, return masked observations. The default is False.
 
         Returns
         -------
         pandas.DataFrame
             Time series.
         """
-        return self.oseries
+        if masked:
+            oseries = self.masked_observations
+        else:
+            oseries = self.oseries
+        if not(standardized):
+            oseries = self.oseries_unstd
+        return oseries
 
     def get_mle(self, p):
         """Method to obtain maximum likelihood estimate based on Kalman filter.
@@ -608,9 +646,9 @@ class Metran:
                                     columns=columns)
         return state_variances
 
-    def get_state(self, i, p=None, ci=True, method="smoother"):
+    def get_state(self, i, p=None, alpha=0.05, method="smoother"):
         """Method to get filtered or smoothed mean for specific state,
-        optionally including 95% confidence interval.
+        optionally including 1-alpha confidence interval.
 
         Parameters
         ----------
@@ -618,9 +656,10 @@ class Metran:
             index of state vector to be obtained
         p : pandas.Series
             Model parameters. The default is None.
-        ci : bool, optional
-            If True, include confidence interval in DataFrame.
-            The default is True.
+        alpha : float, optional
+            Include (1-alpha) confidence interval in DataFrame. The value
+            of alpha must be between 0 and 1.
+            If None, no confidence interval is returned. The default is 0.05.
         method : str, optional
             Use "filter" to obtain filtered variances, and
             "smoother" to obtain smoothed variances.
@@ -638,18 +677,24 @@ class Metran:
             logger.error("Value of i must be >=0 and <" + self.nstate)
         else:
             state = self.get_state_means(p=p, method=method).iloc[:, i]
-            if ci:
+            if alpha is not None:
+                if alpha > 0 and alpha < 1:
+                    z = norm.ppf(1 - alpha / 2.)
+                else:
+                    msg = "The value of alpha must be between 0 and 1."
+                    logger.error(msg)
+                    raise Exception(msg)
                 variances = self.get_state_variances(
                     p=p, method=method).iloc[:, i]
-                iv = 1.96 * np.sqrt(variances)
+                iv = z * np.sqrt(variances)
                 state = concat([state, state - iv, state + iv], axis=1)
                 state.columns = ['mean', 'lower', 'upper']
         return state
 
-    def get_projected_means(self, p=None, standardized=False,
+    def get_simulated_means(self, p=None, standardized=False,
                             method="smoother"):
-        """Method to calculate projected means, which are the filtered/smoothed
-        estimates (means) for the observed series.
+        """Method to calculate simulated means, which are the filtered/smoothed
+        mean estimates for the observed series.
 
         Parameters
         ----------
@@ -666,7 +711,7 @@ class Metran:
 
         Returns
         -------
-        projected_means : pandas.DataFrame
+        simulated_means : pandas.DataFrame
             Filtered or smoothed estimates for observed series.
         """
         self._run_kalman(method, p=p)
@@ -675,15 +720,15 @@ class Metran:
         else:
             observation_matrix = self.get_scaled_observation_matrix()
         (means, _) = \
-            self.kf.get_projected(observation_matrix, method=method)
-        projected_means = \
+            self.kf.simulate(observation_matrix, method=method)
+        simulated_means = \
             DataFrame(means, index=self.oseries.index,
                       columns=self.oseries.columns)
-        return projected_means
+        return simulated_means
 
-    def get_projected_variances(self, p=None, standardized=False,
+    def get_simulated_variances(self, p=None, standardized=False,
                                 method="smoother"):
-        """Method to calculate projected variances, which are the
+        """Method to calculate simulated variances, which are the
         filtered/smoothed variances for the observed series.
 
         Parameters
@@ -701,7 +746,7 @@ class Metran:
 
         Returns
         -------
-        projected_means : pandas.DataFrame
+        simulated_variances : pandas.DataFrame
             Filtered or smoothed variances for observed series.
         """
         self._run_kalman(method, p=p)
@@ -710,15 +755,15 @@ class Metran:
         else:
             observation_matrix = self.get_scaled_observation_matrix()
         (_, variances) = \
-            self.kf.get_projected(observation_matrix, method=method)
-        projected_variances = \
+            self.kf.simulate(observation_matrix, method=method)
+        simulated_variances = \
             DataFrame(variances, index=self.oseries.index,
                       columns=self.oseries.columns)
-        return projected_variances
+        return simulated_variances
 
-    def get_projection(self, name, p=None, ci=True, standardized=False,
+    def get_simulation(self, name, p=None, alpha=0.05, standardized=False,
                        method="smoother"):
-        """Method to calculate projected means for specific series, optionally
+        """Method to calculate simulated means for specific series, optionally
         including 95% confidence interval.
 
         Parameters
@@ -727,9 +772,10 @@ class Metran:
             name of series to be obtained
         p : pandas.Series
             Model parameters. The default is None.
-        ci : bool, optional
-            If True, include confidence interval in DataFrame.
-            The default is True.
+        alpha : float, optional
+            Include (1-alpha) confidence interval in DataFrame. The value
+            of alpha must be between 0 and 1.
+            If None, no confidence interval is returned. The default is 0.05.
         standardized : bool, optional
             If True, obtain estimates for standardized series.
             If False, obtain estimates for unstandardized series.
@@ -746,28 +792,34 @@ class Metran:
             optionally with 'lower' and 'upper' as
             lower and upper bounds of 95% confidence interval.
         """
-        proj = None
-        means = self.get_projected_means(p=p, standardized=standardized,
+        sim = None
+        means = self.get_simulated_means(p=p, standardized=standardized,
                                          method=method)
         if name in means.columns:
-            proj = means.loc[:, name]
-            if ci:
+            sim = means.loc[:, name]
+            if alpha is not None:
+                if alpha > 0 and alpha < 1:
+                    z = norm.ppf(1 - alpha / 2.)
+                else:
+                    msg = "The value of alpha must be between 0 and 1."
+                    logger.error(msg)
+                    raise Exception(msg)
                 variances = \
-                    self.get_projected_variances(p=p,
+                    self.get_simulated_variances(p=p,
                                                  standardized=standardized,
                                                  method=method).loc[:, name]
-                iv = 1.96 * np.sqrt(variances)
-                proj = concat([proj, proj - iv, proj + iv], axis=1)
-                proj.columns = ['mean', 'lower', 'upper']
+                iv = z * np.sqrt(variances)
+                sim = concat([sim, sim - iv, sim + iv], axis=1)
+                sim.columns = ['mean', 'lower', 'upper']
         else:
             logger.error("Unknown name: " + name)
-        return proj
+        return sim
 
-    def decompose_projection(self, name, p=None, standardized=False,
+    def decompose_simulation(self, name, p=None, standardized=False,
                              method="smoother"):
-        """Method to decompose filtered/smoothed estimate for observed series
-        into specific dynamic component (sdf) and the sum of common dynamic
-        components (cdf)
+        """Method to get for observed series filtered/smoothed estimate
+        decomposed into specific dynamic component (sdf) and
+        the sum of common dynamic components (cdf).
 
         Parameters
         ----------
@@ -797,7 +849,7 @@ class Metran:
         else:
             observation_matrix = self.get_scaled_observation_matrix()
         (sdf_means, cdf_means) = \
-            self.kf.decompose_projected(observation_matrix, method=method)
+            self.kf.decompose(observation_matrix, method=method)
         if name in self.oseries.columns:
             sdf = DataFrame(sdf_means,
                             index=self.oseries.index,
@@ -883,37 +935,38 @@ class Metran:
         """
 
         # Perform factor analysis to get factors
-        self.get_factors(self.oseries)
-        # Initialize Kalmanfilter
-        self._init_kalmanfilter(self.oseries)
-        # Initialize parameters
-        self.set_init_parameters()
+        factors = self.get_factors(self.oseries)
+        if factors is not None:
+            # Initialize Kalmanfilter
+            self._init_kalmanfilter(self.oseries)
+            # Initialize parameters
+            self.set_init_parameters()
 
-        # Store the solve instance
-        if solver is None:
-            if self.fit is None:
-                self.fit = ScipySolve(mt=self)
-        elif not issubclass(solver, self.fit.__class__):
-            self.fit = solver(mt=self)
+            # Store the solve instance
+            if solver is None:
+                if self.fit is None:
+                    self.fit = ScipySolve(mt=self)
+            elif not issubclass(solver, self.fit.__class__):
+                self.fit = solver(mt=self)
 
-        self.settings["solver"] = self.fit._name
+            self.settings["solver"] = self.fit._name
 
-        # Solve model
-        success, optimal, stderr = self.fit.solve(**kwargs)
+            # Solve model
+            success, optimal, stderr = self.fit.solve(**kwargs)
 
-        self.parameters["optimal"] = optimal
-        self.parameters["stderr"] = stderr
+            self.parameters["optimal"] = optimal
+            self.parameters["stderr"] = stderr
 
-        if not success:
-            logger.warning("Model parameters could not be estimated well.")
+            if not success:
+                logger.warning("Model parameters could not be estimated well.")
 
-        if report:
-            if isinstance(report, str):
-                output = report
-            else:
-                output = "full"
-            print("\n" + self.fit_report(output=output))
-            print("\n" + self.metran_report())
+            if report:
+                if isinstance(report, str):
+                    output = report
+                else:
+                    output = "full"
+                print("\n" + self.fit_report(output=output))
+                print("\n" + self.metran_report())
 
     def _get_file_info(self):
         """Internal method to get the file information.

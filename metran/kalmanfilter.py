@@ -510,8 +510,8 @@ class SPKalmanFilter():
         mle = nobs * np.log(2 * np.pi) + np.sum(detfs) + np.sum(sigmas)
         return mle
 
-    def get_projected(self, observation_matrix, method="smoother"):
-        """Method to get projected means and covariances.
+    def simulate(self, observation_matrix, method="smoother"):
+        """Method to get simulated means and covariances.
 
         Parameters
         ----------
@@ -523,11 +523,11 @@ class SPKalmanFilter():
 
         Returns
         -------
-        projected_means : list
-            List of projected means for each time step.
-        projected_variances : list
-            List of projected variances for each time step.
-            Variances are diagonal elements of projected covariance matrix.
+        simulated_means : list
+            List of simulated means for each time step.
+        simulated_variances : list
+            List of simulated variances for each time step.
+            Variances are diagonal elements of simulated covariance matrix.
         """
         if method == "filter":
             means = self.filtered_state_means
@@ -535,18 +535,18 @@ class SPKalmanFilter():
         else:
             means = self.smoothed_state_means
             covariances = self.smoothed_state_covariances
-        projected_means = []
-        projected_variances = []
+        simulated_means = []
+        simulated_variances = []
         for t in range(len(means)):
-            projected_means.append(np.dot(observation_matrix, means[t]))
+            simulated_means.append(np.dot(observation_matrix, means[t]))
             var = np.diag(np.dot(observation_matrix,
                                  np.dot(covariances[t], observation_matrix.T)))
             # prevent variances to become less than 0
-            projected_variances.append(np.maximum(var, 0))
-        return (projected_means, projected_variances)
+            simulated_variances.append(np.maximum(var, 0))
+        return (simulated_means, simulated_variances)
 
-    def decompose_projected(self, observation_matrix, method="smoother"):
-        """Method to decompose projected means into specific dynamic factors
+    def decompose(self, observation_matrix, method="smoother"):
+        """Method to decompose simulated means into specific dynamic factors
         (sdf) and common dynamic factors (cdf)
 
         Parameters
