@@ -110,6 +110,14 @@ class FactorAnalysis:
         try:
             nfactors, _ = self._maptest(correlation,
                                         eigvec, self.eigval)
+            msg = "Number of factors according to Velicer\'s MAP test: " \
+                  + f"{nfactors}"
+            logger.info(msg)
+            if nfactors == 0:
+                nfactors = sum(self.eigval>1)
+                msg = "Number of factors according to Kaiser criterion: " \
+                      + f"{nfactors}"
+                logger.info(msg)
             if self.maxfactors is not None:
                 nfactors = min(nfactors, self.maxfactors)
         except:
@@ -141,10 +149,6 @@ class FactorAnalysis:
                             factors[i, j] = -1. * factors[i, j]
 
             self.factors = np.atleast_2d(factors[:, :nfactors])
-
-            msg = "Number of factors according to Velicer\'s MAP test: " \
-                  + f"{nfactors}"
-            logger.info(msg)
 
             self.fep = 100 * np.sum(self.get_eigval_weight()[:nfactors])
 

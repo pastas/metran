@@ -27,17 +27,17 @@ def test_metran_state_means(mt):
     return
 
 
-def test_metran_projected_means(mt):
+def test_metran_simulated_means(mt):
     _ = mt.get_simulated_means()
     return
 
 
-def test_metran_get_projection(mt):
+def test_metran_get_simulation(mt):
     _ = mt.get_simulation("B21B0214005")
     return
 
 
-def test_metran_decompose_projection(mt):
+def test_metran_decompose_simulation(mt):
     _ = mt.decompose_simulation("B21B0214001")
     return
 

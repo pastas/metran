@@ -180,7 +180,7 @@ class Metran:
             logger.error(msg)
             raise Exception(msg)
 
-    def get_factors(self, oseries):
+    def get_factors(self, oseries=None):
         """Method to get factor loadings based on factor analysis.
 
         This method also gets some relevant results from the
@@ -189,8 +189,8 @@ class Metran:
 
         Parameters
         ----------
-        oseries : pandas.DataFrame
-            Series to be analyzed.
+        oseries : pandas.DataFrame, optional
+            Series to be analyzed. The default is None.
 
         Returns
         -------
@@ -198,6 +198,8 @@ class Metran:
             Factor loadings as estimated using factor analysis
 
         """
+        if oseries is None:
+            oseries = self.oseries
         fa = FactorAnalysis()
         self.factors = fa.solve(oseries)
         self.eigval = fa.eigval
