@@ -16,6 +16,7 @@ from pastas.version import __version__
 from .factoranalysis import FactorAnalysis
 from .kalmanfilter import SPKalmanFilter
 from .solver import ScipySolve
+from .plots import MetranPlot
 
 logger = getLogger(__name__)
 initialize_logger(logger)
@@ -82,6 +83,9 @@ class Metran:
 
         # File Information
         self.file_info = self._get_file_info()
+
+        # add plots
+        self.plots = MetranPlot(self)
 
     @property
     def nparam(self):
@@ -565,7 +569,7 @@ class Metran:
             oseries = self.masked_observations
         else:
             oseries = self.oseries
-        if not(standardized):
+        if not standardized:
             oseries = self.oseries_unstd
         return oseries
 
