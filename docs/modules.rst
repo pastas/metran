@@ -17,14 +17,23 @@ Factor Analysis
 .. automodule:: metran.factoranalysis
     :members:
 
+
 Kalman Filter
 -------------
 
 .. automodule:: metran.kalmanfilter
     :members:
 
+
 Solvers
 -------
 
 .. automodule:: metran.solver
+    :members:
+
+
+Plots
+-----
+
+.. automodule:: metran.plots
     :members:

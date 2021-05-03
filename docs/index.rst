@@ -12,7 +12,10 @@ timeseries using dynamic factor models.
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-
+   
+   Getting Started <getting_started>
+   Concepts <concepts>
+   Examples <examples>
    API-docs <modules>
 
 Indices and tables
