@@ -15,7 +15,7 @@ from logging import getLogger
 import numpy as np
 from pandas import DataFrame
 from pastas.utils import initialize_logger
-from scipy.optimize import minimize, approx_fprime
+from scipy.optimize import approx_fprime, minimize
 
 logger = getLogger(__name__)
 initialize_logger(logger)
