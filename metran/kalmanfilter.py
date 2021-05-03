@@ -160,20 +160,24 @@ def seqkalmanfilter_np(observations, transition_matrix, transition_covariance,
     """
     # initialization
     n_timesteps = int(observations.shape[0])
+    dim = filtered_state_mean.shape[0]
     sigmas = []
     detfs = []
-    filtered_state_means = []
-    filtered_state_covariances = []
-    predicted_state_means = []
-    predicted_state_covariances = []
-
+    filtered_state_means = np.zeros((n_timesteps, dim),
+                                    dtype=np.float64)
+    filtered_state_covariances = np.zeros((n_timesteps, dim, dim),
+                                          dtype=np.float64)
+    predicted_state_means = np.zeros((n_timesteps, dim),
+                                     dtype=np.float64)
+    predicted_state_covariances = np.zeros((n_timesteps, dim, dim),
+                                           dtype=np.float64)
     for t in range(n_timesteps):
         # Kalman filter prediction step
         (predicted_state_mean, predicted_state_covariance) = (
             filter_predict(filtered_state_mean, filtered_state_covariance,
                            transition_matrix, transition_covariance))
-        predicted_state_means.append(predicted_state_mean)
-        predicted_state_covariances.append(predicted_state_covariance)
+        predicted_state_means[t] = predicted_state_mean
+        predicted_state_covariances[t] = predicted_state_covariance
 
         if observation_count[t] > 0:
             # Kalman filter update step
@@ -192,8 +196,8 @@ def seqkalmanfilter_np(observations, transition_matrix, transition_covariance,
             filtered_state_mean = predicted_state_mean
             filtered_state_covariance = predicted_state_covariance
 
-        filtered_state_means.append(filtered_state_mean)
-        filtered_state_covariances.append(filtered_state_covariance)
+        filtered_state_means[t] = filtered_state_mean
+        filtered_state_covariances[t] = filtered_state_covariance
 
     return (sigmas, detfs, len(sigmas),
             filtered_state_means,
@@ -631,7 +635,8 @@ class SPKalmanFilter():
         self.smoothed_state_covariances = smoothed_state_covariances
 
     def run_filter(self, initial_state_mean=None,
-                   initial_state_covariance=None):
+                   initial_state_covariance=None,
+                   engine=None):
         """Method to run the Kalman Filter.
 
         This is a sequential processing implementation of the Kalman filter
@@ -649,6 +654,10 @@ class SPKalmanFilter():
             state vector for initializing Kalman filter.
         initial_state_covariance : array_like
             state covariance matrix for initializing Kalman filter.
+        engine : str, optional
+            Engine to be used to run sequential Kalman filter.
+            Either "numba" or "numpy". The default is None, which
+            means that the default Class setting is used.
 
         Returns
         -------
@@ -657,6 +666,22 @@ class SPKalmanFilter():
 
         if self.mask:
             logger.info("Running Kalman filter with masked observations.")
+
+        if engine is not None:
+            if engine == "numpy":
+                self.filtermethod = seqkalmanfilter_np
+            elif engine == "numba":
+                if "numba" not in sys.modules:
+                    msg = "Numba is not installed. Please install numba " \
+                        "or use engine=numpy."
+                    logger.error(msg)
+                    raise Exception(msg)
+                else:
+                    self.filtermethod = seqkalmanfilter
+            else:
+                msg = "Unknown engine defined in run_filter."
+                logger.error(msg)
+                raise Exception(msg)
 
         if initial_state_mean is None:
             initial_state_mean = np.zeros(self.nstate)
