@@ -722,13 +722,15 @@ class Metran:
         self._run_kalman(method, p=p)
         if standardized:
             observation_matrix = self.observation_matrix
+            observation_means = np.zeros(observation_matrix.shape[0])
         else:
             observation_matrix = self.get_scaled_observation_matrix()
+            observation_means = self.oseries_mean
         (means, _) = \
             self.kf.simulate(observation_matrix, method=method)
         simulated_means = \
             DataFrame(means, index=self.oseries.index,
-                      columns=self.oseries.columns)
+                      columns=self.oseries.columns) + observation_means
         return simulated_means
 
     def get_simulated_variances(self, p=None, standardized=False,
@@ -851,8 +853,10 @@ class Metran:
         self._run_kalman(method, p=p)
         if standardized:
             observation_matrix = self.observation_matrix
+            observation_means = np.zeros(observation_matrix.shape[0])
         else:
             observation_matrix = self.get_scaled_observation_matrix()
+            observation_means = self.oseries_mean
         (sdf_means, cdf_means) = \
             self.kf.decompose(observation_matrix, method=method)
         if name in self.oseries.columns:
@@ -861,7 +865,8 @@ class Metran:
                             columns=self.oseries.columns)
             cdf = DataFrame(cdf_means,
                             index=self.oseries.index,
-                            columns=self.oseries.columns)
+                            columns=self.oseries.columns) \
+                + observation_means[self.oseries.columns.tolist().index(name)]
             df = concat([sdf.loc[:, name], cdf.loc[:, name]], axis=1)
             df.columns = ["sdf", "cdf"]
         else:
