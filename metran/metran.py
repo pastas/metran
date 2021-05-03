@@ -4,19 +4,19 @@ from logging import getLogger
 from os import getlogin
 
 import numpy as np
-from scipy.stats import norm
 from pandas import (DataFrame, DatetimeIndex, Series, Timedelta, Timestamp,
                     concat)
 from pandas.tseries.frequencies import to_offset
 from pastas.timeseries import TimeSeries
-from pastas.utils import (initialize_logger, validate_name,
-                          frequency_is_supported)
+from pastas.utils import (frequency_is_supported, initialize_logger,
+                          validate_name)
 from pastas.version import __version__
+from scipy.stats import norm
 
 from .factoranalysis import FactorAnalysis
 from .kalmanfilter import SPKalmanFilter
-from .solver import ScipySolve
 from .plots import MetranPlot
+from .solver import ScipySolve
 
 logger = getLogger(__name__)
 initialize_logger(logger)
@@ -200,7 +200,6 @@ class Metran:
         -------
         factors : numpy.ndarray
             Factor loadings as estimated using factor analysis
-
         """
         if oseries is None:
             oseries = self.oseries
@@ -824,8 +823,8 @@ class Metran:
     def decompose_simulation(self, name, p=None, standardized=False,
                              method="smoother"):
         """Method to get for observed series filtered/smoothed estimate
-        decomposed into specific dynamic component (sdf) and
-        the sum of common dynamic components (cdf).
+        decomposed into specific dynamic component (sdf) and the sum of common
+        dynamic components (cdf).
 
         Parameters
         ----------
