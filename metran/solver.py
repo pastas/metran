@@ -44,8 +44,9 @@ class BaseSolver:
 
         Parameters
         ----------
-        p : lmfit.Parameters instance
-            Ordered dictionary of Parameter objects.
+        p : type required for callback function
+            Parameters to be coverted by callback function into
+            proper type and format.
         callback: ufunc
             Function that is called after each iteration.
             The parameters are provided to the func,
