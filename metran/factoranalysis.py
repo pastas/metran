@@ -114,7 +114,7 @@ class FactorAnalysis:
                   + f"{nfactors}"
             logger.info(msg)
             if nfactors == 0:
-                nfactors = sum(self.eigval>1)
+                nfactors = sum(self.eigval > 1)
                 msg = "Number of factors according to Kaiser criterion: " \
                       + f"{nfactors}"
                 logger.info(msg)
