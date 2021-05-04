@@ -33,42 +33,6 @@ class FactorAnalysis:
     def __init__(self, maxfactors=None):
         self.maxfactors = maxfactors
 
-    def get_specificity(self):
-        """Method to get for each series the fraction that is explained by the
-        specific dynamic factor.
-
-        The specificity is equal to (1 - communality).
-
-        Returns
-        -------
-        list
-            For each series the specificity, a value between 0 and 1.
-            A value of 0 means that the series has all variation
-            in common with other series. A value of 1 means that the
-            series has no variation in common.
-        """
-        return [1 - c for c in self.get_communality()]
-
-    def get_communality(self):
-        """Method to get for each series the fraction that is explained by the
-        common dynamic factor(s).
-
-        The communality is equal to (1 - specificity).
-
-        Returns
-        -------
-        list
-            For each series the communality, a value between 0 and 1.
-            A value of 0 means that the series has no variation
-            in common with other series. A value of 1 means that the
-            series has all variation in common.
-        """
-        communality = []
-        dim = self.factors.shape[0]
-        for n in range(dim):
-            communality.append(np.sum(np.square(self.factors[n, :])))
-        return communality
-
     def get_eigval_weight(self):
         """Method to get the relative weight of each eigenvalue.
 

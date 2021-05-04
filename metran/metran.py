@@ -188,8 +188,8 @@ class Metran:
         """Method to get factor loadings based on factor analysis.
 
         This method also gets some relevant results from the
-        factor analysis including the eigenvalues, specificity,
-        communality and percentage explained by factors (fep).
+        factor analysis including the eigenvalues
+        and percentage explained by factors (fep).
 
         Parameters
         ----------
@@ -208,8 +208,6 @@ class Metran:
         self.eigval = fa.eigval
         if self.factors is not None:
             self.nfactors = self.factors.shape[1]
-            self.specificity = fa.get_specificity()
-            self.communality = fa.get_communality()
             self.fep = fa.fep
         else:
             self.nfactors = 0
@@ -298,10 +296,11 @@ class Metran:
         if p is None:
             p = self.get_parameters(initial)
         transition_covariance = np.eye(self.nstate, dtype=np.float64)
+        factor_load = np.sum(np.square(self.factors), axis=1)
         for n in range(self.nseries):
             name = "sdf" + str(n + 1) + "_alpha"
             transition_covariance[n, n] = (1 - self._phi(p[name]) ** 2) \
-                * self.specificity[n]
+                * (1 - factor_load[n])
         for n in range(self.nfactors):
             name = "cdf" + str(n + 1) + "_alpha"
             transition_covariance[self.nseries + n, self.nseries + n] = (
@@ -591,6 +590,43 @@ class Metran:
         mle = self.kf.get_mle()
         return mle
 
+    def get_specificity(self):
+        """Method to get for each series the fraction that is explained by the
+        specific dynamic factor.
+
+        The specificity is equal to (1 - communality).
+
+        Returns
+        -------
+        numpy.ndarray
+            For each series the specificity, a value between 0 and 1.
+            A value of 0 means that the series has all variation
+            in common with other series. A value of 1 means that the
+            series has no variation in common.
+        """
+        specificity = []
+        for name in self.oseries.columns:
+            sim = self.decompose_simulation(name)
+            specificity.append(sim["sdf"].var() / sim.sum(axis=1).var())
+        return np.array(specificity)
+
+    def get_communality(self):
+        """Method to get for each series the fraction that is explained by the
+        common dynamic factor(s).
+
+        The communality is equal to (1 - specificity).
+
+        Returns
+        -------
+        communality : numpy.ndarray
+            For each series the communality, a value between 0 and 1.
+            A value of 0 means that the series has no variation
+            in common with other series. A value of 1 means that the
+            series has all variation in common.
+        """
+        communality = 1 - self.get_specificity()
+        return communality
+
     def get_state_means(self, p=None, method="smoother"):
         """Method to get filtered or smoothed state means.
 
@@ -721,10 +757,10 @@ class Metran:
         """
         self._run_kalman(method, p=p)
         if standardized:
-            observation_matrix = self.observation_matrix
+            observation_matrix = self.get_observation_matrix(p=p)
             observation_means = np.zeros(observation_matrix.shape[0])
         else:
-            observation_matrix = self.get_scaled_observation_matrix()
+            observation_matrix = self.get_scaled_observation_matrix(p=p)
             observation_means = self.oseries_mean
         (means, _) = \
             self.kf.simulate(observation_matrix, method=method)
@@ -758,9 +794,9 @@ class Metran:
         """
         self._run_kalman(method, p=p)
         if standardized:
-            observation_matrix = self.observation_matrix
+            observation_matrix = self.get_observation_matrix(p=p)
         else:
-            observation_matrix = self.get_scaled_observation_matrix()
+            observation_matrix = self.get_scaled_observation_matrix(p=p)
         (_, variances) = \
             self.kf.simulate(observation_matrix, method=method)
         simulated_variances = \
@@ -852,37 +888,39 @@ class Metran:
         df = None
         self._run_kalman(method, p=p)
         if standardized:
-            observation_matrix = self.observation_matrix
+            observation_matrix = self.get_observation_matrix(p=p)
             observation_means = np.zeros(observation_matrix.shape[0])
         else:
-            observation_matrix = self.get_scaled_observation_matrix()
+            observation_matrix = self.get_scaled_observation_matrix(p=p)
             observation_means = self.oseries_mean
         (sdf_means, cdf_means) = \
             self.kf.decompose(observation_matrix, method=method)
         if name in self.oseries.columns:
             sdf = DataFrame(sdf_means,
                             index=self.oseries.index,
-                            columns=self.oseries.columns)
-            cdf = DataFrame(cdf_means,
-                            index=self.oseries.index,
                             columns=self.oseries.columns) \
                 + observation_means[self.oseries.columns.tolist().index(name)]
+            cdf = DataFrame(cdf_means,
+                            index=self.oseries.index,
+                            columns=self.oseries.columns)
             df = concat([sdf.loc[:, name], cdf.loc[:, name]], axis=1)
             df.columns = ["sdf", "cdf"]
         else:
             logger.error("Unknown name: " + name)
         return df
 
-    def get_scaled_observation_matrix(self):
+    def get_scaled_observation_matrix(self, p=None):
         """Method scale observation matrix by standard deviations of oseries.
 
         Returns
         -------
         observation_matrix: numpy.ndarray
             scaled observation matrix
+        p : pandas.Series
+            Model parameters. The default is None.
         """
         scale = self.oseries_std
-        observation_matrix = self.get_observation_matrix()
+        observation_matrix = self.get_observation_matrix(p=p)
         np.fill_diagonal(observation_matrix[:, :self.nseries], scale)
         for i in range(self.nfactors):
             observation_matrix[:, self.nseries + i] = \
@@ -1134,7 +1172,7 @@ class Metran:
         }
 
         # Create the communality block
-        communality = Series(self.communality,
+        communality = Series(self.get_communality(),
                              index=self.oseries.columns,
                              name="")
         communality = communality.apply("{:.2%}".format).to_frame()
@@ -1222,12 +1260,12 @@ class Metran:
         else:
             correlations = ""
 
-        report = "{header}{factors}{communality}{transition}" \
-            "{observation}{correlations}".format(header=header,
+        report = "{header}{factors}{transition}{observation}" \
+            "{communality}{correlations}".format(header=header,
                                                  factors=factors,
-                                                 communality=communality,
                                                  transition=transition,
                                                  observation=observation,
+                                                 communality=communality,
                                                  correlations=correlations)
 
         return report
