@@ -129,7 +129,7 @@ class MetranPlot:
 
         sim = self.mt.get_simulation(name, alpha=alpha)
         obs = self.mt.get_observations(
-            standardized=False, masked=False).loc[:, name]
+            standardized=False, masked=self.mt.kf.mask).loc[:, name]
 
         if tmin is None:
             tmin = sim.index[0]
