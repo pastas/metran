@@ -900,11 +900,15 @@ class Metran:
                             index=self.oseries.index,
                             columns=self.oseries.columns) \
                 + observation_means[self.oseries.columns.tolist().index(name)]
-            cdf = DataFrame(cdf_means,
-                            index=self.oseries.index,
-                            columns=self.oseries.columns)
-            df = concat([sdf.loc[:, name], cdf.loc[:, name]], axis=1)
-            df.columns = ["sdf", "cdf"]
+            df = sdf.loc[: , name]
+            cols = ["sdf",]
+            for k in range(self.nfactors):
+                cdf = DataFrame(cdf_means[k],
+                                index=self.oseries.index,
+                                columns=self.oseries.columns)
+                df = concat([df, cdf.loc[:, name]], axis=1)
+                cols.append("cdf" + str(k + 1))
+            df.columns = cols
         else:
             logger.error("Unknown name: " + name)
         return df

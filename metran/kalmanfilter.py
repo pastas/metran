@@ -573,13 +573,17 @@ class SPKalmanFilter():
         else:
             means = self.smoothed_state_means
         nsdf = self.observation_matrix.shape[0]
+        ncdf = self.observation_matrix.shape[1] - nsdf
         sdf_means = []
-        cdf_means = []
         for t in range(len(means)):
             sdf_means.append(np.dot(observation_matrix[:, :nsdf],
                                     means[t, :nsdf]))
-            cdf_means.append(np.dot(observation_matrix[:, nsdf:],
-                                    means[t, nsdf:]))
+        cdf_means = [[]] * ncdf
+        for k in range(ncdf):
+            idx = nsdf + k
+            for t in range(len(means)):
+                cdf_means[k].append(np.dot(observation_matrix[:, idx],
+                                           means[t, idx]))
         return (sdf_means, cdf_means)
 
     def set_observations(self, oseries):
