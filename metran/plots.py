@@ -21,12 +21,13 @@ class MetranPlot:
             plot axis handle
         """
 
-        n_ev = np.arange(self.mt.eigval.shape[0])
+        n_ev = np.arange(self.mt.eigval.shape[0]) + 1
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
         ax.plot(n_ev, self.mt.eigval, marker="o", ms=7, mfc="none", c="C3")
         ax.bar(n_ev, self.mt.eigval, facecolor="none",
                edgecolor="C0", linewidth=2)
         ax.grid(b=True)
+        ax.set_xticks(n_ev)
         ax.set_ylabel("eigenvalue")
         ax.set_xlabel("eigenvalue number")
         fig.tight_layout()
@@ -192,7 +193,7 @@ class MetranPlot:
 
     def decomposition(self, name, tmin=None, tmax=None, ax=None,
                       split=False, adjust_height=True, **kwargs):
-        """Plot decomposition into specific and dynamic components.
+        """Plot decomposition into specific and common dynamic components.
 
         Parameters
         ----------
@@ -205,7 +206,7 @@ class MetranPlot:
         ax : matplotlib.pyplot.Axis
             axes to plot decomposition on
         split : bool, optional
-            plot specific and common dynamic factors on different axes, 
+            plot specific and common dynamic factors on different axes,
             only if ax is None
         adjust_height : bool, optional
             scale y-limits of axes relative to one another, by default True,
@@ -291,7 +292,7 @@ class MetranPlot:
         return iax.figure.axes
 
     def decompositions(self, tmin=None, tmax=None, **kwargs):
-        """Plot all decompositions into specific and dynamic components.
+        """Plot all decompositions into specific and common dynamic components.
 
         Parameters
         ----------
