@@ -25,7 +25,7 @@ states = mt.get_state_means()
 means = mt.get_simulated_means()
 
 # Get projected mean for specific series with/without 95% confidence interval
-proj = mt.get_simulation("B21B0214005", alpha=0.05)
+sim = mt.get_simulation("B21B0214005", alpha=0.05)
 
 # Decomposed projected mean for specific series
 dec = mt.decompose_simulation("B21B0214001")
@@ -36,13 +36,13 @@ mt.get_state(0, alpha=0.05)
 # remove outlier from series B21B0214005 at 1997-8-28
 # and re-run smoother to get estimate of observation
 # (Fig 3 in Stromingen without deterministic component)
-proj = mt.get_simulation("B21B0214005", alpha=0.05)
-proj.loc["1997"].plot()
+sim = mt.get_simulation("B21B0214005", alpha=0.05)
+sim.loc["1997"].plot()
 oseries = mt.get_observations()
 mask = (0 * oseries).astype(bool)
 mask.loc["1997-8-28", "B21B0214005"] = True
 mt.mask_observations(mask)
-proj = mt.get_simulation("B21B0214005", alpha=0.05)
-proj.loc["1997"].plot()
+sim = mt.get_simulation("B21B0214005", alpha=0.05)
+sim.loc["1997"].plot()
 # unmask observations to get original observations
 mt.unmask_observations()
