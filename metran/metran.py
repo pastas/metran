@@ -568,7 +568,7 @@ class Metran:
         else:
             oseries = self.oseries
         if not standardized:
-            oseries = self.oseries_unstd
+            oseries = oseries * self.oseries_std + self.oseries_mean
         return oseries
 
     def get_mle(self, p):
