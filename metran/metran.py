@@ -604,28 +604,21 @@ class Metran:
             in common with other series. A value of 1 means that the
             series has no variation in common.
         """
-        specificity = []
-        for name in self.oseries.columns:
-            sim = self.decompose_simulation(name)
-            specificity.append(sim["sdf"].var() / sim.sum(axis=1).var())
-        return np.array(specificity)
+        return (1 - self.get_communality())
 
     def get_communality(self):
         """Method to get for each series the fraction that is explained by the
         common dynamic factor(s).
 
-        The communality is equal to (1 - specificity).
-
         Returns
         -------
-        communality : numpy.ndarray
+        numpy.ndarray
             For each series the communality, a value between 0 and 1.
             A value of 0 means that the series has no variation
             in common with other series. A value of 1 means that the
             series has all variation in common.
         """
-        communality = 1 - self.get_specificity()
-        return communality
+        return np.sum(np.square(self.factors), axis=1)
 
     def get_state_means(self, p=None, method="smoother"):
         """Method to get filtered or smoothed state means.
@@ -1264,12 +1257,12 @@ class Metran:
         else:
             correlations = ""
 
-        report = "{header}{factors}{transition}{observation}" \
-            "{communality}{correlations}".format(header=header,
+        report = "{header}{factors}{communality}{transition}" \
+            "{observation}{correlations}".format(header=header,
                                                  factors=factors,
+                                                 communality=communality,
                                                  transition=transition,
                                                  observation=observation,
-                                                 communality=communality,
                                                  correlations=correlations)
 
         return report
