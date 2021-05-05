@@ -75,7 +75,7 @@ class MetranPlot:
         else:
             hrs = [1] * (states.columns.size)
 
-        fig = plt.figure(figsize=(10, 10))
+        fig = plt.figure(figsize=(10, states.columns.size * 2))
         gs = fig.add_gridspec(
             ncols=1, nrows=states.columns.size, height_ratios=hrs)
 
@@ -94,7 +94,7 @@ class MetranPlot:
                 lbl = f"specific dynamic factor {col[3:]}"
 
             states.loc[:, col].plot(ax=iax, label=lbl, color=c)
-            iax.legend(loc="upper right")
+            iax.legend(loc=(0, 1), ncol=3, frameon=False, numpoints=3)
             iax.grid(b=True)
 
             if adjust_height:
@@ -149,7 +149,7 @@ class MetranPlot:
         if alpha is not None:
             ax.fill_between(sim.index, sim["lower"], sim["upper"], color="gray",
                             alpha=0.5, label="95%-confidence interval")
-        ax.legend(loc="best", numpoints=3, ncol=3)
+        ax.legend(loc=(0, 1), ncol=3, frameon=False, numpoints=3)
         ax.grid(b=True)
         ax.set_ylabel("head")
         ax.set_xlim(tmin, tmax)
@@ -280,7 +280,7 @@ class MetranPlot:
 
             # grid and legend
             iax.grid(b=True)
-            iax.legend(loc="upper right", ncol=3)
+            iax.legend(loc=(0, 1), ncol=3, frameon=False, numpoints=3)
 
             # set ylimits
             if adjust_height and split and ax is None:
