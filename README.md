@@ -1,4 +1,4 @@
-[![metran](https://github.com/pastas/pastas-metran/actions/workflows/ci.yml/badge.svg)](https://github.com/pastas/pastas-metran/actions/workflows/ci.yml)
+[![metran](https://github.com/pastas/metran/actions/workflows/ci.yml/badge.svg)](https://github.com/pastas/metran/actions/workflows/ci.yml)
 
 # Metran
 
@@ -33,15 +33,15 @@ not already available:
 For a brief introduction of the theory behind Metran on multivariate timeseries analysis with
 dynamic factor modeling see the notebook:
 
--   [The Dynamic Factor Model](https://github.com/pastas/pastas-metran/blob/main/examples/dynamic_factor_model.ipynb)
+-   [The Dynamic Factor Model](https://github.com/pastas/metran/blob/main/examples/dynamic_factor_model.ipynb)
 
 A practical real-world example, as published in Stromingen (Van Geer, 2015), is given in the following notebook:
 
--   [Metran practical example](https://github.com/pastas/pastas-metran/blob/main/examples/metran_practical_example.ipynb.ipynb)
+-   [Metran practical example](https://github.com/pastas/metran/blob/main/examples/metran_practical_example.ipynb.ipynb)
 
 A notebook on how to use [Pastas](https://github.com/pastas/pastas) models output with Metran:
 
--   [Pastas Metran example](https://github.com/pastas/pastas-metran/blob/main/examples/pastas_metran_example.ipynb)
+-   [Pastas Metran example](https://github.com/pastas/metran/blob/main/examples/pastas_metran_example.ipynb)
 
 ## References
 

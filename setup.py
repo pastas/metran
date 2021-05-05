@@ -14,13 +14,13 @@ setup(
     description='Python package to perform timeseries analysis of multiple'
                 'hydrological time series using a dynamic factor model.',
     long_description=long_description,
-    url='https://github.com/pastas/pastas-metran',
+    url='https://github.com/pastas/metran',
     author='W.L. Berendrecht',
     author_email='',
     project_urls={
-        'Source': 'https://github.com/pastas/pastas-metran',
+        'Source': 'https://github.com/pastas/metran',
         'Documentation': '',
-        'Tracker': 'https://github.com/pastas/pastas-metran/issues',
+        'Tracker': 'https://github.com/pastas/metran/issues',
         'Help': ''
     },
     license='MIT',
