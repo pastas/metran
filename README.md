@@ -37,7 +37,7 @@ dynamic factor modeling see the notebook:
 
 A practical real-world example, as published in Stromingen (Van Geer, 2015), is given in the following notebook:
 
--   [Metran practical example](https://github.com/pastas/metran/blob/main/examples/metran_practical_example.ipynb.ipynb)
+-   [Metran practical example](https://github.com/pastas/metran/blob/main/examples/metran_practical_example.ipynb)
 
 A notebook on how to use [Pastas](https://github.com/pastas/pastas) models output with Metran:
 
