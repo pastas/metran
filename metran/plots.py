@@ -151,7 +151,6 @@ class MetranPlot:
                             alpha=0.5, label="95%-confidence interval")
         ax.legend(loc=(0, 1), ncol=3, frameon=False, numpoints=3)
         ax.grid(b=True)
-        ax.set_ylabel("head")
         ax.set_xlim(tmin, tmax)
 
         if ax is None:
