@@ -91,7 +91,7 @@ class MetranPlot:
                 lbl = f"common dynamic factor {col[3:]}"
             else:
                 c = "C0"
-                lbl = f"specific dynamic factor {col[3:]}"
+                lbl = f"specific dynamic factor {col.replace('_sdf', '')}"
 
             states.loc[:, col].plot(ax=iax, label=lbl, color=c)
             iax.legend(loc=(0, 1), ncol=3, frameon=False, numpoints=3)
