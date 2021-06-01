@@ -268,7 +268,7 @@ class Metran:
         transition_matrix = np.zeros((self.nstate, self.nstate),
                                      dtype=np.float64)
         for n in range(self.nseries):
-            name = "sdf" + str(n + 1) + "_alpha"
+            name = self.snames[n] + "_sdf" + "_alpha"
             transition_matrix[n, n] = self._phi(p[name])
         for n in range(self.nfactors):
             name = "cdf" + str(n + 1) + "_alpha"
@@ -298,7 +298,7 @@ class Metran:
         transition_covariance = np.eye(self.nstate, dtype=np.float64)
         factor_load = np.sum(np.square(self.factors), axis=1)
         for n in range(self.nseries):
-            name = "sdf" + str(n + 1) + "_alpha"
+            name = self.snames[n] + "_sdf" + "_alpha"
             transition_covariance[n, n] = (1 - self._phi(p[name]) ** 2) \
                 * (1 - factor_load[n])
         for n in range(self.nfactors):
@@ -430,7 +430,7 @@ class Metran:
             self.parameters.loc["cdf" + str(n + 1) + "_alpha"] = (
                 pinit_alpha, 1e-5, None, True, "cdf")
         for n in range(self.nseries):
-            self.parameters.loc["sdf" + str(n + 1) + "_alpha"] = (
+            self.parameters.loc[self.snames[n] + "_sdf" + "_alpha"] = (
                 pinit_alpha, 1e-5, None, True, "sdf")
 
     def mask_observations(self, mask):
@@ -503,7 +503,7 @@ class Metran:
             _oseries = []
             _names = []
             if len(oseries) > 1:
-                for os in oseries:
+                for i, os in enumerate(oseries):
                     if isinstance(os, TimeSeries):
                         _oseries.append(os.series)
                         _names.append(os.name)
@@ -515,6 +515,8 @@ class Metran:
                                 logger.error(msg)
                                 raise Exception(msg)
                             os = os.squeeze()
+                        if os.name is None:
+                            os.name = 'Series' + str(i+1)
                         _oseries.append(os)
                         _names.append(os.name)
                 self.snames = _names
@@ -638,7 +640,7 @@ class Metran:
             specific dynamic factors (sdf) and common dynamic factors (cdf)
         """
         self._run_kalman(method, p=p)
-        columns = ["sdf" + str(i + 1) for i in range(self.nseries)]
+        columns = [name + "_sdf" for name in self.snames]
         columns.extend(["cdf" + str(i + 1) for i in range(self.nfactors)])
         if method == "filter":
             means = self.kf.filtered_state_means
@@ -674,7 +676,7 @@ class Metran:
                 cov = self.kf.smoothed_state_covariances
             n_timesteps = cov.shape[0]
             var = np.vstack([np.diag(cov[i]) for i in range(n_timesteps)])
-        columns = ["sdf" + str(i + 1) for i in range(self.nseries)]
+        columns = [name + "_sdf" for name in self.snames]
         columns.extend(["cdf" + str(i + 1) for i in range(self.nfactors)])
         state_variances = DataFrame(var, index=self.oseries.index,
                                     columns=columns)
@@ -1085,7 +1087,7 @@ class Metran:
         string = "{:{fill}{align}{width}}"
 
         # Create the first header with model information and stats
-        w = max(width - 44, 0)
+        w = max(width - 45, 0)
         header = "Fit report {name:<16}{string}Fit Statistics\n" \
                  "{line}\n".format(name=self.name[:14],
                                    string=string.format(
@@ -1093,10 +1095,12 @@ class Metran:
                                    line=string.format("", fill='=', align='>', width=width))
 
         basic = ""
-        w = max(width - 45, 0)
+        vw = max(width - 45, 0)
         for (val1, val2), (val3, val4) in zip(model.items(), fit.items()):
             val4 = string.format(val4, fill=' ', align='>', width=w)
-            basic += "{:<8} {:<16} {:<7} {:}\n".format(val1, val2, val3, val4)
+            space = string.format("", fill=' ', align='>', width=vw)
+            basic += "{:<8} {:<16} {:} {:<7} {:}\n".format(val1, val2, space,
+                                                       val3, val4)
 
         # Create the parameters block
         parameters = "\nParameters ({n_param} were optimized)\n{line}\n" \
@@ -1168,25 +1172,25 @@ class Metran:
             "": ""
         }
 
+        # Create the state parameters block
+        phi = np.diag(self.get_transition_matrix())
+        q = self.get_transition_variance()
+        names = [name + "_sdf" for name in self.snames]
+        names.extend(["cdf" + str(i + 1) for i in range(self.nfactors)])
+        transition = DataFrame(np.array([phi, q]).T,
+                               index=names,
+                               columns=["phi", "q"])
+
+        # get width of index to align state parameters index
+        idx_width = int(max([len(n) for n in transition.index]))
+
         # Create the communality block
         communality = Series(self.get_communality(),
                              index=self.oseries.columns,
                              name="")
+        communality.index = [idx.ljust(idx_width)
+                             for idx in communality.index]
         communality = communality.apply("{:.2%}".format).to_frame()
-
-        # get width of index to align state parameters index
-        idx_width = int(max([len(n) for n in communality.index]))
-
-        # Create the state parameters block
-        phi = np.diag(self.get_transition_matrix())
-        q = self.get_transition_variance()
-        names = [("sdf" + str(i + 1)).ljust(idx_width)
-                 for i in range(self.nseries)]
-        names.extend([("cdf" + str(i + 1)).ljust(idx_width)
-                      for i in range(self.nfactors)])
-        transition = DataFrame(np.array([phi, q]).T,
-                               index=names,
-                               columns=["phi", "q"])
 
         # Create the observation parameters block
         gamma = self.factors
@@ -1194,6 +1198,8 @@ class Metran:
         observation = DataFrame(gamma,
                                 index=self.oseries.columns,
                                 columns=names)
+        observation.index = [idx.ljust(idx_width)
+                             for idx in observation.index]
         observation.loc[:, "scale"] = self.oseries_std
         observation.loc[:, "mean"] = self.oseries_mean
 
