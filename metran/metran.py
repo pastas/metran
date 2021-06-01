@@ -540,7 +540,7 @@ class Metran:
             raise Exception(msg)
 
         oseries = self.truncate(oseries)
-        if type(oseries.index) == DatetimeIndex:
+        if isinstance(oseries.index, DatetimeIndex):
             oseries = oseries.asfreq("D")
             self.nseries = oseries.shape[1]
             self.oseries_unstd = oseries
@@ -1045,7 +1045,7 @@ class Metran:
 
         try:
             file_info["owner"] = getlogin()
-        except:
+        except Exception:
             file_info["owner"] = "Unknown"
 
         return file_info

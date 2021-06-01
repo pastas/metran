@@ -129,8 +129,8 @@ class BaseSolver:
                     # find nearest positive semi-definite matrix
                     try:
                         cov = np.linalg.pinv(self._nearPSD(hessian))
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Could not calculate 'cov': {e}")
                 if np.amin(np.diag(cov)) > 0:
                     cov_ok = True
 
@@ -419,7 +419,8 @@ class LmfitSolve(BaseSolver):
 
         return success, optimal, stderr
 
-    def _lmfit_todict(self, p):
+    @staticmethod
+    def _lmfit_todict(p):
         """Convert lmfit.Parameter instance to dictionary.
 
         Parameters

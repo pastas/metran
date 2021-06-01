@@ -410,7 +410,7 @@ def kalmansmoother(filtered_state_means, filtered_state_covariances,
     for t in reversed(range(n_timesteps - 1)):
         try:
             psc_inv = np.linalg.pinv(predicted_state_covariances[t + 1])
-        except:
+        except Exception:
             psc_inv = np.linalg.inv(predicted_state_covariances[t + 1])
         kalman_smoothing_gains[t] = (np.dot(filtered_state_covariances[t],
                                             np.dot(transition_matrix.T, psc_inv)))
@@ -540,7 +540,7 @@ class SPKalmanFilter():
             covariances = self.smoothed_state_covariances
         simulated_means = []
         simulated_variances = []
-        for t in range(len(means)):
+        for t, _ in enumerate(means):
             simulated_means.append(np.dot(observation_matrix, means[t]))
             var = np.diag(np.dot(observation_matrix,
                                  np.dot(covariances[t], observation_matrix.T)))
@@ -576,13 +576,13 @@ class SPKalmanFilter():
         nsdf = self.observation_matrix.shape[0]
         ncdf = self.observation_matrix.shape[1] - nsdf
         sdf_means = []
-        for t in range(len(means)):
+        for t, _ in enumerate(means):
             sdf_means.append(np.dot(observation_matrix[:, :nsdf],
                                     means[t, :nsdf]))
         cdf_means = [[]] * ncdf
         for k in range(ncdf):
             idx = nsdf + k
-            for t in range(len(means)):
+            for t in enumerate(means):
                 cdf_means[k].append(np.dot(observation_matrix[:, idx],
                                            means[t, idx]))
         return (sdf_means, cdf_means)
