@@ -10,11 +10,11 @@ Metran is a package for performing multivariate timeseries analysis using a tech
 
 To install Metran, a working version of Python 3.7 or 3.8 has to be installed on your computer. We recommend using the Anaconda Distribution with Python 3.7 as it includes most of the python package dependencies and the Jupyter Notebook software to run the notebooks. However, you are free to install any Python distribution you want.
 
-To install `metran`, clone the repository and type the following command
+To install `metran`, type the following command
 
-`pip install .`
+`pip install metran`
 
-To install in development mode, use:
+To install in development mode, clone the repository and type the following from the module root directory:
 
 `pip install -e .`
 

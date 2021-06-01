@@ -12,14 +12,14 @@ it includes most of the python package dependencies and the Jupyter Notebook
 software to run the notebooks. However, you are free to install any 
 Python distribution you want. 
 
-To install metran, clone the repository and type the following command from 
-the module root directory:
+To install metran, use:
 
 .. code:: bash
 
-    pip install .
+    pip install metran
 
-To install in development mode, use:
+To install in development mode, clone the repository, then type the following 
+from the module root directory:
 
 .. code:: bash
 
@@ -36,7 +36,7 @@ To use Metran, import the metran package:
     import metran
 
 Create Metran model by passing a list of timeseries (measured heads, or 
-timeseries of the residuals of Pastas timeseries models).
+timeseries of the residuals of e.g. Pastas timeseries models).
 
 .. code:: python
     
