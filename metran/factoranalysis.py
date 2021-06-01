@@ -1,4 +1,4 @@
-"""This module contains the FactorAnalysis class for Metran in Pastas."""
+"""FactorAnalysis class for Metran in Pastas."""
 
 from logging import getLogger
 

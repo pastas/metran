@@ -1,5 +1,4 @@
 import metran
-import pytest
 
 from conftest import get_data
 

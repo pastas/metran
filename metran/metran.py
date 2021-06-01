@@ -96,7 +96,7 @@ class Metran:
         return self.nseries + self.nfactors
 
     def standardize(self, oseries):
-        """Mathod to standardize series by subtracting mean and dividing by
+        """Method to standardize series by subtracting mean and dividing by
         standard deviation.
 
         Parameters

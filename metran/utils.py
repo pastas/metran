@@ -1,6 +1,5 @@
 def show_versions():
-    """Method to print the version of dependencies.
-    """
+    """Method to print the version of dependencies."""
     from pastas import __version__ as ps_version
     from pandas import __version__ as pd_version
     from numpy import __version__ as np_version
