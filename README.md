@@ -1,5 +1,6 @@
 [![metran](https://github.com/pastas/metran/actions/workflows/ci.yml/badge.svg)](https://github.com/pastas/metran/actions/workflows/ci.yml)
 [![Documentation Status](https://readthedocs.org/projects/metran/badge/?version=latest)](https://metran.readthedocs.io/en/latest/?badge=latest)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/43056ec3f22341fa992fff4e7b2eeb73)](https://www.codacy.com/gh/pastas/metran/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=pastas/metran&amp;utm_campaign=Badge_Grade)
 
 # Metran
 
