@@ -614,7 +614,7 @@ class SPKalmanFilter():
             self.observation_count[t] = len(obsindices)
 
             if (len(obsindices) > 0):
-                for i in range(len(obsindices)):
+                for i, _ in enumerate(obsindices):
                     obsid = int(obsindices[i])
                     self.observations[t, obsid] = observation[obsid]
                     self.observation_indices[t, i] = obsid
