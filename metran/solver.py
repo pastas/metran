@@ -63,9 +63,9 @@ class BaseSolver:
         return obj
 
     def _get_covariance(self, x0, f, callback, epsilon=None, diff="forward"):
-        """Estimate covariance matrix of parameter estimates. 
+        """Estimate covariance matrix of parameter estimates.
 
-        Uses a numerical approximation to the Hessian matrix of cost 
+        Uses a numerical approximation to the Hessian matrix of cost
         function at location x0.
 
         Parameters

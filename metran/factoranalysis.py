@@ -169,7 +169,7 @@ class FactorAnalysis:
         return phi_rot
 
     def _minres(self, s, nf, covar=False):
-        """Internal method for estimating factor loadings. 
+        """Internal method for estimating factor loadings.
 
         Uses the minimum residuals (minres) algorithm.
 
@@ -213,7 +213,7 @@ class FactorAnalysis:
     def _maptest(cov, eigvec, eigval):
         """Internal method to run Velicer's MAP test.
 
-        Determines the number of factors to be used. This method includes 
+        Determines the number of factors to be used. This method includes
         two variations of the MAP test: the orginal and the revised MAP test.
 
         Parameters
@@ -322,7 +322,7 @@ class FactorAnalysis:
         return np.sum(residual)
 
     def _minresgrad(self, psi, s, nf):
-        """Internal method to calculate jacobian of function. 
+        """Internal method to calculate jacobian of function.
 
         Jacobian to be minimized in minimum residuals (minres) algorithm.
 
@@ -349,7 +349,7 @@ class FactorAnalysis:
 
     @staticmethod
     def _get_loadings(psi, s, nf):
-        """Internal method to estimate matrix of factor loadings. 
+        """Internal method to estimate matrix of factor loadings.
 
         Based on minimum residuals (minres) algorithm.
 
@@ -395,7 +395,7 @@ class FactorAnalysis:
 
     @staticmethod
     def _get_eigval(correlation):
-        """Internal method to get eigenvalues and eigenvectors. 
+        """Internal method to get eigenvalues and eigenvectors.
 
         Get eigenvalues and eigenvectors based on correlation matrix.
 

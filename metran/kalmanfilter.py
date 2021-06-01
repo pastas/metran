@@ -551,7 +551,7 @@ class SPKalmanFilter():
     def decompose(self, observation_matrix, method="smoother"):
         """Method to decompose simulated means.
 
-        Decomposition into specific dynamic factors (sdf) and common 
+        Decomposition into specific dynamic factors (sdf) and common
         dynamic factors (cdf).
 
         Parameters
@@ -590,7 +590,7 @@ class SPKalmanFilter():
     def set_observations(self, oseries):
         """Construct observation matrices allowing missing values.
 
-        Initialize sequential processing of the Kalman filter. 
+        Initialize sequential processing of the Kalman filter.
 
         Parameters
         ----------

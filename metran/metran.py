@@ -96,7 +96,7 @@ class Metran:
         return self.nseries + self.nfactors
 
     def standardize(self, oseries):
-        """Method to standardize series. 
+        """Method to standardize series.
 
         Standardized by subtracting mean and dividing by standard deviation.
 
@@ -188,7 +188,7 @@ class Metran:
     def get_factors(self, oseries=None):
         """Method to get factor loadings based on factor analysis.
 
-        This method also gets some relevant results from the factor analysis 
+        This method also gets some relevant results from the factor analysis
         including the eigenvalues and percentage explained by factors (fep).
 
         Parameters
@@ -230,9 +230,9 @@ class Metran:
         self.kf.set_observations(oseries)
 
     def _phi(self, alpha):
-        """Internal method to calculate autoregressive model parameter. 
+        """Internal method to calculate autoregressive model parameter.
 
-        Autoregressive model parameter is calculated based on parameter 
+        Autoregressive model parameter is calculated based on parameter
         alpha.
 
         Parameters
@@ -311,7 +311,7 @@ class Metran:
     def get_transition_variance(self, p=None, initial=False):
         """Get the transition variance vector.
 
-        The transition variance vector is obtained by extracting the diagonal 
+        The transition variance vector is obtained by extracting the diagonal
         of the transition covariance matrix.
 
         Parameters
@@ -372,9 +372,9 @@ class Metran:
         return observation_variance
 
     def _get_matrices(self, p, initial=False):
-        """Internal method to get all matrices. 
+        """Internal method to get all matrices.
 
-        Returns all matrices required to define the Metran dynamic 
+        Returns all matrices required to define the Metran dynamic
         factor model.
 
         Parameters
@@ -597,7 +597,7 @@ class Metran:
     def get_specificity(self):
         """Get fraction that is explained by the specific dynamic factor.
 
-        Calculate specificity for each series. The specificity is 
+        Calculate specificity for each series. The specificity is
         equal to (1 - communality).
 
         Returns
@@ -735,7 +735,7 @@ class Metran:
                             method="smoother"):
         """Method to calculate simulated means.
 
-        Simulated means are the filtered/smoothed mean estimates for 
+        Simulated means are the filtered/smoothed mean estimates for
         the observed series.
 
         Parameters
@@ -774,7 +774,7 @@ class Metran:
                                 method="smoother"):
         """Method to calculate simulated variances,
 
-        The simulated variances are the filtered/smoothed variances 
+        The simulated variances are the filtered/smoothed variances
         for the observed series.
 
         Parameters
