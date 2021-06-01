@@ -1,4 +1,5 @@
 [![metran](https://github.com/pastas/metran/actions/workflows/ci.yml/badge.svg)](https://github.com/pastas/metran/actions/workflows/ci.yml)
+[![Documentation Status](https://readthedocs.org/projects/metran/badge/?version=latest)](https://metran.readthedocs.io/en/latest/?badge=latest)
 
 # Metran
 
