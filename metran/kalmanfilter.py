@@ -45,8 +45,7 @@ def filter_predict(filtered_state_mean, filtered_state_covariance,
 def filter_update(observations, observation_matrix, observation_variance,
                   observation_indices, observation_count,
                   state_mean, state_covariance):
-    """Update a predicted state with a Kalman Filter update using sequential
-    processing.
+    """Update predicted state with Kalman Filter using sequential processing.
 
     Parameters
     ----------
@@ -113,7 +112,7 @@ def seqkalmanfilter_np(observations, transition_matrix, transition_covariance,
                        filtered_state_mean, filtered_state_covariance):
     """Method to run sequential Kalman filter optimized for use with numpy.
 
-    This method is suggested to use if numba is not installed.
+    This method is suggested if numba is not installed.
     It is, however, much slower than seqkalmanfilter combined with numba.
 
     Parameters
@@ -550,8 +549,10 @@ class SPKalmanFilter():
         return (simulated_means, simulated_variances)
 
     def decompose(self, observation_matrix, method="smoother"):
-        """Method to decompose simulated means into specific dynamic factors
-        (sdf) and common dynamic factors (cdf)
+        """Method to decompose simulated means.
+
+        Decomposition into specific dynamic factors (sdf) and common 
+        dynamic factors (cdf).
 
         Parameters
         ----------
@@ -587,17 +588,14 @@ class SPKalmanFilter():
         return (sdf_means, cdf_means)
 
     def set_observations(self, oseries):
-        """Initialize sequential processing of the Kalman filter by
-        constructing observation matrices allowing missing values.
+        """Construct observation matrices allowing missing values.
+
+        Initialize sequential processing of the Kalman filter. 
 
         Parameters
         ----------
         oseries : pandas.DataFrame
             multiple time series
-
-        Returns
-        -------
-        None.
         """
         self.oseries_index = oseries.index
         observations_masked = np.ma.array(oseries,
@@ -622,8 +620,11 @@ class SPKalmanFilter():
                     self.observation_indices[t, i] = obsid
 
     def run_smoother(self):
-        """Calculate smoothed state means and covariances using the Kalman
-        smoother."""
+        """Run Kalman smoother.
+
+        Calculate smoothed state means and covariances using the Kalman
+        smoother.
+        """
         # run Kalman filter to get filtered state estimates and covariances
         self.run_filter()
         # run Kalman smoother to get smoothed state estimates and covariances
@@ -665,7 +666,7 @@ class SPKalmanFilter():
 
         Returns
         -------
-        None.
+        None
         """
 
         if self.mask:

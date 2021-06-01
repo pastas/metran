@@ -1,4 +1,4 @@
-"""This module contains the Metran class in Pastas."""
+"""The Metran model class."""
 
 from logging import getLogger
 from os import getlogin
@@ -96,8 +96,9 @@ class Metran:
         return self.nseries + self.nfactors
 
     def standardize(self, oseries):
-        """Method to standardize series by subtracting mean and dividing by
-        standard deviation.
+        """Method to standardize series. 
+
+        Standardized by subtracting mean and dividing by standard deviation.
 
         Parameters
         ----------
@@ -187,9 +188,8 @@ class Metran:
     def get_factors(self, oseries=None):
         """Method to get factor loadings based on factor analysis.
 
-        This method also gets some relevant results from the
-        factor analysis including the eigenvalues
-        and percentage explained by factors (fep).
+        This method also gets some relevant results from the factor analysis 
+        including the eigenvalues and percentage explained by factors (fep).
 
         Parameters
         ----------
@@ -215,8 +215,7 @@ class Metran:
         return self.factors
 
     def _init_kalmanfilter(self, oseries):
-        """Internal method to initialize Kalmanfilter for sequential
-        processing.
+        """Internal method, initialize Kalmanfilter for sequential processing.
 
         Parameters
         ----------
@@ -231,8 +230,10 @@ class Metran:
         self.kf.set_observations(oseries)
 
     def _phi(self, alpha):
-        """Internal method to calculate autoregressive model parameter based on
-        parameter alpha.
+        """Internal method to calculate autoregressive model parameter. 
+
+        Autoregressive model parameter is calculated based on parameter 
+        alpha.
 
         Parameters
         ----------
@@ -277,8 +278,7 @@ class Metran:
         return transition_matrix
 
     def get_transition_covariance(self, p=None, initial=False):
-        """Method to get transition covariance matrix of the Metran dynamic
-        factor model.
+        """Get transition covariance matrix of the Metran dynamic factor model.
 
         Parameters
         ----------
@@ -309,8 +309,10 @@ class Metran:
         return transition_covariance
 
     def get_transition_variance(self, p=None, initial=False):
-        """Method to extract diagonal of transition covariance matrix to get
-        the transition variance vector.
+        """Get the transition variance vector.
+
+        The transition variance vector is obtained by extracting the diagonal 
+        of the transition covariance matrix.
 
         Parameters
         ----------
@@ -370,8 +372,10 @@ class Metran:
         return observation_variance
 
     def _get_matrices(self, p, initial=False):
-        """Internal method to get all matrices required to define the Metran
-        dynamic factor model.
+        """Internal method to get all matrices. 
+
+        Returns all matrices required to define the Metran dynamic 
+        factor model.
 
         Parameters
         ----------
@@ -423,7 +427,7 @@ class Metran:
 
         Returns
         -------
-        None.
+        None
         """
         pinit_alpha = 10
         for n in range(self.nfactors):
@@ -434,8 +438,7 @@ class Metran:
                 pinit_alpha, 1e-5, None, True, "sdf")
 
     def mask_observations(self, mask):
-        """Method to mask observations for processing with Kalman filter or
-        smoother.
+        """Mask observations for processing with Kalman filter or smoother.
 
         This method does NOT change the oseries itself. It only
         masks (hides) observations while running the
@@ -465,11 +468,11 @@ class Metran:
             self.kf.mask = True
 
     def unmask_observations(self):
-        """Method to unmask observation and reset observations to self.oseries.
+        """Method to unmask observation and reset observations.
 
         Returns
         -------
-        None.
+        None
         """
         self.masked_observations = None
         self.kf.init_states()
@@ -477,8 +480,7 @@ class Metran:
         self.kf.mask = False
 
     def set_observations(self, oseries):
-        """Method to rework oseries to pandas.DataFrame for further use in
-        Metran class.
+        """Rework oseries to pandas.DataFrame for further use in Metran class.
 
         Parameters
         ----------
@@ -516,7 +518,7 @@ class Metran:
                                 raise Exception(msg)
                             os = os.squeeze()
                         if os.name is None:
-                            os.name = 'Series' + str(i+1)
+                            os.name = 'Series' + str(i + 1)
                         _oseries.append(os)
                         _names.append(os.name)
                 self.snames = _names
@@ -593,10 +595,10 @@ class Metran:
         return mle
 
     def get_specificity(self):
-        """Method to get for each series the fraction that is explained by the
-        specific dynamic factor.
+        """Get fraction that is explained by the specific dynamic factor.
 
-        The specificity is equal to (1 - communality).
+        Calculate specificity for each series. The specificity is 
+        equal to (1 - communality).
 
         Returns
         -------
@@ -609,8 +611,9 @@ class Metran:
         return (1 - self.get_communality())
 
     def get_communality(self):
-        """Method to get for each series the fraction that is explained by the
-        common dynamic factor(s).
+        """Get fraction that is explained by the common dynamic factor(s).
+
+        Calculate communality for each series.
 
         Returns
         -------
@@ -683,8 +686,9 @@ class Metran:
         return state_variances
 
     def get_state(self, i, p=None, alpha=0.05, method="smoother"):
-        """Method to get filtered or smoothed mean for specific state,
-        optionally including 1-alpha confidence interval.
+        """Get filtered or smoothed mean for specific state.
+
+        Optionally including the 1-alpha confidence interval.
 
         Parameters
         ----------
@@ -729,8 +733,10 @@ class Metran:
 
     def get_simulated_means(self, p=None, standardized=False,
                             method="smoother"):
-        """Method to calculate simulated means, which are the filtered/smoothed
-        mean estimates for the observed series.
+        """Method to calculate simulated means.
+
+        Simulated means are the filtered/smoothed mean estimates for 
+        the observed series.
 
         Parameters
         ----------
@@ -766,8 +772,10 @@ class Metran:
 
     def get_simulated_variances(self, p=None, standardized=False,
                                 method="smoother"):
-        """Method to calculate simulated variances, which are the
-        filtered/smoothed variances for the observed series.
+        """Method to calculate simulated variances,
+
+        The simulated variances are the filtered/smoothed variances 
+        for the observed series.
 
         Parameters
         ----------
@@ -801,8 +809,9 @@ class Metran:
 
     def get_simulation(self, name, p=None, alpha=0.05, standardized=False,
                        method="smoother"):
-        """Method to calculate simulated means for specific series, optionally
-        including 95% confidence interval.
+        """Method to calculate simulated means for specific series.
+
+        Optionally including 1-alpha confidence interval.
 
         Parameters
         ----------
@@ -855,7 +864,9 @@ class Metran:
 
     def decompose_simulation(self, name, p=None, standardized=False,
                              method="smoother"):
-        """Method to get for observed series filtered/smoothed estimate
+        """Decompose simulation into specific and common dynamic components.
+
+        Method to get for observed series filtered/smoothed estimate
         decomposed into specific dynamic component (sdf) and the sum of common
         dynamic components (cdf).
 
@@ -895,8 +906,8 @@ class Metran:
                             index=self.oseries.index,
                             columns=self.oseries.columns) \
                 + observation_means[self.oseries.columns.tolist().index(name)]
-            df = sdf.loc[: , name]
-            cols = ["sdf",]
+            df = sdf.loc[:, name]
+            cols = ["sdf", ]
             for k in range(self.nfactors):
                 cdf = DataFrame(cdf_means[k],
                                 index=self.oseries.index,
@@ -1092,7 +1103,8 @@ class Metran:
                  "{line}\n".format(name=self.name[:14],
                                    string=string.format(
                                        "", fill=' ', align='>', width=w),
-                                   line=string.format("", fill='=', align='>', width=width))
+                                   line=string.format("", fill='=', align='>',
+                                                      width=width))
 
         basic = ""
         vw = max(width - 45, 0)
@@ -1100,12 +1112,13 @@ class Metran:
             val4 = string.format(val4, fill=' ', align='>', width=w)
             space = string.format("", fill=' ', align='>', width=vw)
             basic += "{:<8} {:<16} {:} {:<7} {:}\n".format(val1, val2, space,
-                                                       val3, val4)
+                                                           val3, val4)
 
         # Create the parameters block
         parameters = "\nParameters ({n_param} were optimized)\n{line}\n" \
                      "{parameters}".format(n_param=parameters.vary.sum(),
-                                           line=string.format("", fill='=', align='>',
+                                           line=string.format("", fill='=',
+                                                              align='>',
                                                               width=width),
                                            parameters=parameters)
 

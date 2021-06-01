@@ -18,10 +18,6 @@ class FactorAnalysis:
     maxfactors : int, optional.
         maximum number of factors to select. The default is None.
 
-    Returns
-    -------
-    FactorAnalysis instance
-
     Examples
     --------
     A minimal working example of the FactorAnalysis class is shown below:
@@ -125,8 +121,9 @@ class FactorAnalysis:
 
     @staticmethod
     def _rotate(phi, gamma=1, maxiter=20, tol=1e-6):
-        """Internal method to rotate factor loadings using varimax, quartimax,
-        equamax, or parsimax rotation.
+        """Internal method to rotate factor loadings.
+
+        Uses varimax, quartimax, equamax, or parsimax rotation.
 
         Parameters
         ----------
@@ -172,8 +169,9 @@ class FactorAnalysis:
         return phi_rot
 
     def _minres(self, s, nf, covar=False):
-        """Internal method for estimating factor loadings using the minimum
-        residuals (minres) algorithm.
+        """Internal method for estimating factor loadings. 
+
+        Uses the minimum residuals (minres) algorithm.
 
         Parameters
         ----------
@@ -213,11 +211,10 @@ class FactorAnalysis:
 
     @staticmethod
     def _maptest(cov, eigvec, eigval):
-        """Internal method to run Velicer's MAP test to determine the number of
-        factors to be used.
+        """Internal method to run Velicer's MAP test.
 
-        This method includes two variations
-        of the MAP test: the orginal and the revised MAP test.
+        Determines the number of factors to be used. This method includes 
+        two variations of the MAP test: the orginal and the revised MAP test.
 
         Parameters
         ----------
@@ -325,8 +322,9 @@ class FactorAnalysis:
         return np.sum(residual)
 
     def _minresgrad(self, psi, s, nf):
-        """Internal method to calculate jacobian of function to be minimized in
-        minimum residuals (minres) algorithm.
+        """Internal method to calculate jacobian of function. 
+
+        Jacobian to be minimized in minimum residuals (minres) algorithm.
 
         Parameters
         ----------
@@ -351,8 +349,9 @@ class FactorAnalysis:
 
     @staticmethod
     def _get_loadings(psi, s, nf):
-        """Internal method to estimate matrix of factor loadings based on
-        minimum residuals (minres) algorithm.
+        """Internal method to estimate matrix of factor loadings. 
+
+        Based on minimum residuals (minres) algorithm.
 
         Parameters
         ----------
@@ -396,8 +395,9 @@ class FactorAnalysis:
 
     @staticmethod
     def _get_eigval(correlation):
-        """Internal method to get eigenvalues and eigenvectors based on
-        correlation matrix.
+        """Internal method to get eigenvalues and eigenvectors. 
+
+        Get eigenvalues and eigenvectors based on correlation matrix.
 
         Parameters
         ----------

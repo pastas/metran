@@ -63,8 +63,10 @@ class BaseSolver:
         return obj
 
     def _get_covariance(self, x0, f, callback, epsilon=None, diff="forward"):
-        """Estimate covariance matrix of parameter estimates using a numerical
-        approximation to the Hessian matrix of cost function at location x0.
+        """Estimate covariance matrix of parameter estimates. 
+
+        Uses a numerical approximation to the Hessian matrix of cost 
+        function at location x0.
 
         Parameters
         ----------
@@ -139,8 +141,9 @@ class BaseSolver:
 
     @staticmethod
     def _get_correlations(pcov):
-        """Internal method to obtain the parameter correlations from the
-        covariance matrix.
+        """Internal method to obtain the parameter correlations.
+
+        Parameter correlations are derived from the covariance matrix.
 
         Parameters
         ----------
@@ -191,8 +194,7 @@ class BaseSolver:
 class ScipySolve(BaseSolver):
     """Solver based on Scipy's least_squares method [scipy_ref]_.
 
-    This class is the default solve method called by the Metran solve
-    method.
+    This class is the default solver class in the Metran solve method.
 
     Parameters
     ----------
