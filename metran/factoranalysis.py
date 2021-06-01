@@ -80,7 +80,7 @@ class FactorAnalysis:
                 logger.info(msg)
             if self.maxfactors is not None:
                 nfactors = min(nfactors, self.maxfactors)
-        except:
+        except Exception:
             nfactors = 0
         factors = self._minres(correlation, nfactors)
 

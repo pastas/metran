@@ -17,12 +17,6 @@ setup(
     url='https://github.com/pastas/metran',
     author='W.L. Berendrecht',
     author_email='',
-    project_urls={
-        'Source': 'https://github.com/pastas/metran',
-        'Documentation': '',
-        'Tracker': 'https://github.com/pastas/metran/issues',
-        'Help': ''
-    },
     license='MIT',
     classifiers=[
         'Development Status :: 4 - Beta',
