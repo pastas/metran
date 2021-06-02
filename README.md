@@ -1,7 +1,7 @@
 [![metran](https://github.com/pastas/metran/actions/workflows/ci.yml/badge.svg)](https://github.com/pastas/metran/actions/workflows/ci.yml)
 [![Documentation Status](https://readthedocs.org/projects/metran/badge/?version=latest)](https://metran.readthedocs.io/en/latest/?badge=latest)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/43056ec3f22341fa992fff4e7b2eeb73)](https://www.codacy.com/gh/pastas/metran/dashboard?utm_source=github.com&utm_medium=referral&utm_content=pastas/metran&utm_campaign=Badge_Grade)
-[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/43056ec3f22341fa992fff4e7b2eeb73)](https://www.codacy.com/gh/pastas/metran/dashboard?utm_source=github.com&utm_medium=referral&utm_content=pastas/metran&utm_campaign=Badge_Coverage)\\
+[![Codacy Badge](https://app.codacy.com/project/badge/Coverage/43056ec3f22341fa992fff4e7b2eeb73)](https://www.codacy.com/gh/pastas/metran/dashboard?utm_source=github.com&utm_medium=referral&utm_content=pastas/metran&utm_campaign=Badge_Coverage)
 ![PyPI](https://img.shields.io/pypi/v/metran)
 
 # Metran
