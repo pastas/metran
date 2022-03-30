@@ -2,7 +2,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from pandas import Timestamp
-from pastas.modelplots import _get_height_ratios
+import pastas
+if pastas.__version__ < '0.19.0':
+    from pastas.plots import _get_height_ratios
+else:
+    from pastas.modelplots import _get_height_ratios
 
 
 class MetranPlot:
