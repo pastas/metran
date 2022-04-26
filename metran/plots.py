@@ -30,7 +30,7 @@ class MetranPlot:
         ax.plot(n_ev, self.mt.eigval, marker="o", ms=7, mfc="none", c="C3")
         ax.bar(n_ev, self.mt.eigval, facecolor="none",
                edgecolor="C0", linewidth=2)
-        ax.grid(b=True)
+        ax.grid(visible=True)
         ax.set_xticks(n_ev)
         ax.set_ylabel("eigenvalue")
         ax.set_xlabel("eigenvalue number")
@@ -99,7 +99,7 @@ class MetranPlot:
 
             states.loc[:, col].plot(ax=iax, label=lbl, color=c)
             iax.legend(loc=(0, 1), ncol=3, frameon=False, numpoints=3)
-            iax.grid(b=True)
+            iax.grid(visible=True)
 
             if adjust_height:
                 iax.set_ylim(ylims[i])
@@ -154,7 +154,7 @@ class MetranPlot:
             ax.fill_between(sim.index, sim["lower"], sim["upper"], color="gray",
                             alpha=0.5, label="95%-confidence interval")
         ax.legend(loc=(0, 1), ncol=3, frameon=False, numpoints=3)
-        ax.grid(b=True)
+        ax.grid(visible=True)
         ax.set_xlim(tmin, tmax)
 
         if ax is None:
@@ -282,7 +282,7 @@ class MetranPlot:
             iax.plot(s.index, s, label=f"{col} {name}", color=c, zorder=zorder)
 
             # grid and legend
-            iax.grid(b=True)
+            iax.grid(visible=True)
             iax.legend(loc=(0, 1), ncol=3, frameon=False, numpoints=3)
 
             # set ylimits
