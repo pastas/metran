@@ -579,12 +579,16 @@ class SPKalmanFilter():
         for t, _ in enumerate(means):
             sdf_means.append(np.dot(observation_matrix[:, :nsdf],
                                     means[t, :nsdf]))
-        cdf_means = [[]] * ncdf
+
+        cdf_means = []
         for k in range(ncdf):
             idx = nsdf + k
+            cdf_means_cdf = []
             for t, _ in enumerate(means):
-                cdf_means[k].append(np.dot(observation_matrix[:, idx],
+                cdf_means_cdf.append(np.dot(observation_matrix[:, idx],
                                            means[t, idx]))
+
+            cdf_means.append(cdf_means_cdf)
         return (sdf_means, cdf_means)
 
     def set_observations(self, oseries):
