@@ -59,6 +59,6 @@ not already available:
 
 ## References
 
--   Berendrecht, W.L. (2004). State space modeling of groundwater fluctuations. 
--   Berendrecht, W.L., F.C. van Geer (2016). A dynamic factor modeling framework for analyzing multiple groundwater head series simultaneously, Journal of Hydrology, 536, pp. 50-60, doi:<http://dx.doi.org/10.1016/j.jhydrol.2016.02.028>.
--   Van Geer, F.C. en W.L. Berendrecht (2015) Meervoudige tijdreeksmodellen en de samenhang in stijghoogtereeksen. Stromingen 23 nummer 3, pp. 25-36.
+-   Berendrecht, W.L. (2004). [State space modeling of groundwater fluctuations](https://repository.tudelft.nl/islandora/object/uuid:f12775fc-a804-4d4a-8872-664e5a61cbf5/datastream/OBJ). Doctoral Thesis, Delft University of Technology.
+-   Berendrecht, W.L., F.C. van Geer (2016). [A dynamic factor modeling framework for analyzing multiple groundwater head series simultaneously](http://dx.doi.org/10.1016/j.jhydrol.2016.02.028). Journal of Hydrology, 536, pp. 50-60.
+-   Van Geer, F.C. en W.L. Berendrecht (2015) [Meervoudige tijdreeksmodellen en de samenhang in stijghoogtereeksen](https://edepot.wur.nl/378871). Stromingen 23 nummer 3, pp. 25-36. 
