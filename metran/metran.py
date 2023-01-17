@@ -214,7 +214,7 @@ class Metran:
 
         return self.factors
 
-    def _init_kalmanfilter(self, oseries):
+    def _init_kalmanfilter(self, oseries, engine="numba"):
         """Internal method, initialize Kalmanfilter for sequential processing.
 
         Parameters
@@ -226,7 +226,7 @@ class Metran:
         -------
         None.
         """
-        self.kf = SPKalmanFilter()
+        self.kf = SPKalmanFilter(engine=engine)
         self.kf.set_observations(oseries)
 
     def _phi(self, alpha):
@@ -965,7 +965,7 @@ class Metran:
             elif self.kf.smoothed_state_means is None:
                 self.kf.run_smoother()
 
-    def solve(self, solver=None, report=True, **kwargs):
+    def solve(self, solver=None, report=True, engine="numba", **kwargs):
         """Method to solve the time series model.
 
         Parameters
@@ -979,6 +979,9 @@ class Metran:
             can also be manually triggered after optimization by calling
             print(mt.fit_report()) or print(mt.metran_report())
             on the Metran instance.
+        engine: str, optional
+            Engine used for the Kalman filter, by default 'numba' which is the
+            fastest choice but 'numpy' is a slower more robust choice.
         **kwargs: dict, optional
             All keyword arguments will be passed onto minimization method
             from the solver.
@@ -996,7 +999,7 @@ class Metran:
         factors = self.get_factors(self.oseries)
         if factors is not None:
             # Initialize Kalmanfilter
-            self._init_kalmanfilter(self.oseries)
+            self._init_kalmanfilter(self.oseries, engine=engine)
             # Initialize parameters
             self.set_init_parameters()
 
