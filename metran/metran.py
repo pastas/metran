@@ -221,6 +221,9 @@ class Metran:
         ----------
         oseries : pandas.DataFrame
             Series being processed by the Kalmanfilter.
+        engine: str, optional
+            Engine used for the Kalman filter, by default 'numba' which is the
+            fastest choice but 'numpy' is also available, but is slower.
 
         Returns
         -------
@@ -981,7 +984,7 @@ class Metran:
             on the Metran instance.
         engine: str, optional
             Engine used for the Kalman filter, by default 'numba' which is the
-            fastest choice but 'numpy' is a slower more robust choice.
+            fastest choice but 'numpy' is also available, but is slower.
         **kwargs: dict, optional
             All keyword arguments will be passed onto minimization method
             from the solver.
