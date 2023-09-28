@@ -41,8 +41,10 @@ repository = "https://github.com/pastas/metran"
 documentation = "https://metran.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
-rtd = ["metran"]
-dev = ["metran[rtd]"]
+linting = ["flake8"]
+pytesting = ["pytest"]
+coveraging = ["codecov", "pytest-cov", "pytest-dependency", "codacy-coverage"]
+ci = ["metran[linting,pytsting,coveraging]"]
 
 [tool.setuptools.dynamic]
 version = { attr = "metran.version.__version__" }
