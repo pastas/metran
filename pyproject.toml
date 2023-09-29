@@ -9,7 +9,7 @@ description = "Python package to perform timeseries analysis of multiple hydrolo
 license = { file = "LICENSE" }
 readme = "README.md"
 dependencies = [
-    "numpy>=1.16.5",
+    "numpy>=1.16.5,<1.22",
     "matplotlib>=3.0",
     "pandas>=1.0",
     "scipy>=1.1",
