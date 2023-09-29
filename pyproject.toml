@@ -73,8 +73,8 @@ legacy_tox_ini = """
     basepython = python3.9
     extras = formatting
     commands =
-            black src --check --verbose
-            isort src --check
+            black . --check --verbose
+            isort . --check
 
     [testenv:lint]
     description = run linters
