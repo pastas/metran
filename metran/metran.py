@@ -8,9 +8,15 @@ from pandas import (DataFrame, DatetimeIndex, Series, Timedelta, Timestamp,
                     concat)
 from pandas.tseries.frequencies import to_offset
 from pastas.timeseries import TimeSeries
-from pastas.utils import (frequency_is_supported, initialize_logger,
-                          validate_name)
+from pastas.utils import initialize_logger, validate_name
 from pastas.version import __version__
+
+if __version__ > "0.22.0":
+    from pastas.timeseries_utils import (
+        _frequency_is_supported as frequency_is_supported,
+    )
+else:
+    from pastas.utils import frequency_is_supported
 from scipy.stats import norm
 
 from .factoranalysis import FactorAnalysis
