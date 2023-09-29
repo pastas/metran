@@ -42,9 +42,9 @@ documentation = "https://metran.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 linting = ["flake8"]
-pytesting = ["pytest"]
-coveraging = ["codecov", "pytest-cov", "pytest-dependency", "codacy-coverage"]
-ci = ["metran[linting,pytsting,coveraging]"]
+pytesting = ["pytest", "pytest-dependency"]
+coveraging = ["codecov", "pytest-cov", "codacy-coverage"]
+ci = ["metran[linting,pytesting,coveraging]"]
 
 [tool.setuptools.dynamic]
 version = { attr = "metran.version.__version__" }
