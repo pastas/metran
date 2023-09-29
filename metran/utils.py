@@ -20,6 +20,7 @@ def show_versions():
     # numba
     try:
         from numba import __version__ as nb_version
+
         msg = msg + f"\nnumba version: {nb_version}"
     except ModuleNotFoundError:
         msg = msg + "\nnumba version: not installed"
@@ -27,6 +28,7 @@ def show_versions():
     # lmfit
     try:
         from lmfit import __version__ as lm_version
+
         msg = msg + f"\nlmfit version: {lm_version}"
     except ModuleNotFoundError:
         msg = msg + "\nlmfit version: not installed"
