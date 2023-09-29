@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=64.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metran"
+dynamic = ["version"]
+description = "Python package to perform timeseries analysis of multiple hydrological time series using a dynamic factor model."
+license = { file = "LICENSE" }
+readme = "README.md"
+dependencies = [
+    "numpy>=1.16.5",
+    "matplotlib>=3.0",
+    "pandas>=1.0",
+    "scipy>=1.1",
+    "numba",
+    "pastas>=0.16.0",
+]
+authors = [{ name = "W.L. Berendrecht" }]
+maintainers = [
+    { name = "W.L. Berendrecht", email = "wilbert@berendrechtconsultancy.nl" },
+    { name = "D.A. Brakenhoff", email = "d.brakenhoff@artesia-water.nl" },
+    { name = "M.A. Vonk", email = "m.vonk@artesia-water.nl" },
+]
+requires-python = ">= 3.7"
+keywords = ["hydrology", "groundwater", "timeseries", "analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Other Audience",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Scientific/Engineering :: Hydrology",
+]
+
+[project.urls]
+homepage = "https://github.com/pastas/metran"
+repository = "https://github.com/pastas/metran"
+documentation = "https://metran.readthedocs.io/en/latest/"
+
+[project.optional-dependencies]
+linting = ["flake8"]
+pytesting = ["pytest", "pytest-dependency"]
+coveraging = ["codecov", "pytest-cov", "codacy-coverage"]
+ci = ["metran[linting,pytesting,coveraging]"]
+
+[tool.setuptools.dynamic]
+version = { attr = "metran.version.__version__" }
+
+[tool.pytest.ini_options]
+addopts = "--durations=0 --cov-report xml:coverage.xml --cov metran -v"
