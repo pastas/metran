@@ -1,6 +1,6 @@
-import metran
-
 from conftest import get_data
+
+import metran
 
 
 def test_metran_init():

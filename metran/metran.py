@@ -4,12 +4,10 @@ from logging import getLogger
 from os import getlogin
 
 import numpy as np
-from pandas import (DataFrame, DatetimeIndex, Series, Timedelta, Timestamp,
-                    concat)
+from pandas import DataFrame, DatetimeIndex, Series, Timedelta, Timestamp, concat
 from pandas.tseries.frequencies import to_offset
 from pastas.timeseries import TimeSeries
-from pastas.utils import (frequency_is_supported, initialize_logger,
-                          validate_name)
+from pastas.utils import frequency_is_supported, initialize_logger, validate_name
 from pastas.version import __version__
 from scipy.stats import norm
 
@@ -49,8 +47,7 @@ class Metran:
         Metran instance.
     """
 
-    def __init__(self, oseries, name='Cluster', freq=None,
-                 tmin=None, tmax=None):
+    def __init__(self, oseries, name="Cluster", freq=None, tmin=None, tmax=None):
         # Default settings
         self.settings = {
             "tmin": None,
@@ -58,7 +55,7 @@ class Metran:
             "freq": "D",
             "min_pairs": 20,
             "solver": None,
-            "warmup": 1
+            "warmup": 1,
         }
 
         if tmin is not None:
@@ -71,8 +68,7 @@ class Metran:
         # Initialize and rework observations
         self.nfactors = 0
         self.set_observations(oseries)
-        self.parameters = DataFrame(columns=['initial', 'pmin', 'pmax',
-                                             'vary', 'name'])
+        self.parameters = DataFrame(columns=["initial", "pmin", "pmax", "vary", "name"])
         self.set_init_parameters()
 
         # initialize attributes
@@ -141,7 +137,7 @@ class Metran:
         else:
             tmax = self.settings["tmax"]
         oseries = oseries.loc[tmin:tmax]
-        return oseries.dropna(how='all')
+        return oseries.dropna(how="all")
 
     def test_cross_section(self, oseries=None, min_pairs=None):
         """Method to test whether series have enough cross-sectional data.
@@ -175,13 +171,20 @@ class Metran:
         pairs = Series(index=oseries.columns, dtype=int)
         oseries["count"] = oseries.count(axis=1)
         for s in pairs.index:
-            pairs[s] = oseries.dropna(subset=[s, ])["count"].count()
+            pairs[s] = oseries.dropna(
+                subset=[
+                    s,
+                ]
+            )["count"].count()
         oseries = oseries.drop(["count"], axis=1)
         if pairs.min() < max(min_pairs, 1):
             err = pairs[pairs < min_pairs].index.tolist()
-            msg = "Number of cross-sectional data is less than " \
-                + str(min_pairs) + " for series " \
-                + (', ').join([str(e) for e in err])
+            msg = (
+                "Number of cross-sectional data is less than "
+                + str(min_pairs)
+                + " for series "
+                + (", ").join([str(e) for e in err])
+            )
             logger.error(msg)
             raise Exception(msg)
 
@@ -269,15 +272,13 @@ class Metran:
         """
         if p is None:
             p = self.get_parameters(initial)
-        transition_matrix = np.zeros((self.nstate, self.nstate),
-                                     dtype=np.float64)
+        transition_matrix = np.zeros((self.nstate, self.nstate), dtype=np.float64)
         for n in range(self.nseries):
             name = self.snames[n] + "_sdf" + "_alpha"
             transition_matrix[n, n] = self._phi(p[name])
         for n in range(self.nfactors):
             name = "cdf" + str(n + 1) + "_alpha"
-            transition_matrix[self.nseries + n,
-                              self.nseries + n] = self._phi(p[name])
+            transition_matrix[self.nseries + n, self.nseries + n] = self._phi(p[name])
         return transition_matrix
 
     def get_transition_covariance(self, p=None, initial=False):
@@ -302,8 +303,9 @@ class Metran:
         factor_load = np.sum(np.square(self.factors), axis=1)
         for n in range(self.nseries):
             name = self.snames[n] + "_sdf" + "_alpha"
-            transition_covariance[n, n] = (1 - self._phi(p[name]) ** 2) \
-                * (1 - factor_load[n])
+            transition_covariance[n, n] = (1 - self._phi(p[name]) ** 2) * (
+                1 - factor_load[n]
+            )
         for n in range(self.nfactors):
             name = "cdf" + str(n + 1) + "_alpha"
             transition_covariance[self.nseries + n, self.nseries + n] = (
@@ -352,9 +354,8 @@ class Metran:
         """
         if p is None:
             p = self.get_parameters(initial)
-        observation_matrix = np.zeros((self.nseries, self.nstate),
-                                      dtype=np.float64)
-        observation_matrix[:, :self.nseries] = np.eye(self.nseries)
+        observation_matrix = np.zeros((self.nseries, self.nstate), dtype=np.float64)
+        observation_matrix[:, : self.nseries] = np.eye(self.nseries)
         for n in range(self.nseries):
             for k in range(self.nfactors):
                 observation_matrix[n, self.nseries + k] = self.factors[n, k]
@@ -399,10 +400,12 @@ class Metran:
         numpy.ndarray
             Observation variance vector.
         """
-        return (self.get_transition_matrix(p, initial),
-                self.get_transition_covariance(p, initial),
-                self.get_observation_matrix(p, initial),
-                self.get_observation_variance())
+        return (
+            self.get_transition_matrix(p, initial),
+            self.get_transition_covariance(p, initial),
+            self.get_observation_matrix(p, initial),
+            self.get_observation_variance(),
+        )
 
     def get_parameters(self, initial=False):
         """Method to get all parameters from the individual objects.
@@ -418,7 +421,7 @@ class Metran:
         parameters: pandas.Series
             initial or optimal parameters.
         """
-        if not(initial) and "optimal" in self.parameters:
+        if not (initial) and "optimal" in self.parameters:
             parameters = self.parameters["optimal"]
         else:
             parameters = self.parameters["initial"]
@@ -435,10 +438,20 @@ class Metran:
         pinit_alpha = 10
         for n in range(self.nfactors):
             self.parameters.loc["cdf" + str(n + 1) + "_alpha"] = (
-                pinit_alpha, 1e-5, None, True, "cdf")
+                pinit_alpha,
+                1e-5,
+                None,
+                True,
+                "cdf",
+            )
         for n in range(self.nseries):
             self.parameters.loc[self.snames[n] + "_sdf" + "_alpha"] = (
-                pinit_alpha, 1e-5, None, True, "sdf")
+                pinit_alpha,
+                1e-5,
+                None,
+                True,
+                "sdf",
+            )
 
     def mask_observations(self, mask):
         """Mask observations for processing with Kalman filter or smoother.
@@ -460,10 +473,13 @@ class Metran:
         None.
         """
         if mask.shape != self.oseries.shape:
-            logger.error("Dimensions of mask " + str(mask.shape)
-                         + " do not equal dimensions of series "
-                         + str(self.oseries.shape)
-                         + ". Mask cannot be applied.")
+            logger.error(
+                "Dimensions of mask "
+                + str(mask.shape)
+                + " do not equal dimensions of series "
+                + str(self.oseries.shape)
+                + ". Mask cannot be applied."
+            )
         else:
             self.masked_observations = self.oseries.mask(mask.astype(bool))
             self.kf.init_states()
@@ -515,13 +531,15 @@ class Metran:
                     elif isinstance(os, (Series, DataFrame)):
                         if isinstance(os, DataFrame):
                             if os.shape[1] > 1:
-                                msg = "One or more series have " \
+                                msg = (
+                                    "One or more series have "
                                     + "DataFrame with multiple columns"
+                                )
                                 logger.error(msg)
                                 raise Exception(msg)
                             os = os.squeeze()
                         if os.name is None:
-                            os.name = 'Series' + str(i + 1)
+                            os.name = "Series" + str(i + 1)
                         _oseries.append(os)
                         _names.append(os.name)
                 self.snames = _names
@@ -531,14 +549,12 @@ class Metran:
         elif isinstance(oseries, DataFrame):
             self.snames = oseries.columns
         else:
-            msg = "Input type should be either a " \
-                + "list, tuple, or pandas.DataFrame"
+            msg = "Input type should be either a " + "list, tuple, or pandas.DataFrame"
             logger.error(msg)
             raise TypeError(msg)
 
         if oseries.shape[1] < 2:
-            msg = "Metran requires at least 2 series, found " \
-                + str(oseries.shape[1])
+            msg = "Metran requires at least 2 series, found " + str(oseries.shape[1])
             logger.error(msg)
             raise Exception(msg)
 
@@ -611,7 +627,7 @@ class Metran:
             in common with other series. A value of 1 means that the
             series has no variation in common.
         """
-        return (1 - self.get_communality())
+        return 1 - self.get_communality()
 
     def get_communality(self):
         """Get fraction that is explained by the common dynamic factor(s).
@@ -652,8 +668,7 @@ class Metran:
             means = self.kf.filtered_state_means
         else:
             means = self.kf.smoothed_state_means
-        state_means = DataFrame(means, index=self.oseries.index,
-                                columns=columns)
+        state_means = DataFrame(means, index=self.oseries.index, columns=columns)
         return state_means
 
     def get_state_variances(self, p=None, method="smoother"):
@@ -675,7 +690,7 @@ class Metran:
             specific dynamic factors (sdf) and common dynamic factors (cdf)
         """
         self._run_kalman(method, p=p)
-        with np.errstate(invalid='ignore'):
+        with np.errstate(invalid="ignore"):
             if method == "filter":
                 cov = self.kf.filtered_state_covariances
             else:
@@ -684,8 +699,7 @@ class Metran:
             var = np.vstack([np.diag(cov[i]) for i in range(n_timesteps)])
         columns = [name + "_sdf" for name in self.snames]
         columns.extend(["cdf" + str(i + 1) for i in range(self.nfactors)])
-        state_variances = DataFrame(var, index=self.oseries.index,
-                                    columns=columns)
+        state_variances = DataFrame(var, index=self.oseries.index, columns=columns)
         return state_variances
 
     def get_state(self, i, p=None, alpha=0.05, method="smoother"):
@@ -722,20 +736,18 @@ class Metran:
             state = self.get_state_means(p=p, method=method).iloc[:, i]
             if alpha is not None:
                 if alpha > 0 and alpha < 1:
-                    z = norm.ppf(1 - alpha / 2.)
+                    z = norm.ppf(1 - alpha / 2.0)
                 else:
                     msg = "The value of alpha must be between 0 and 1."
                     logger.error(msg)
                     raise Exception(msg)
-                variances = self.get_state_variances(
-                    p=p, method=method).iloc[:, i]
+                variances = self.get_state_variances(p=p, method=method).iloc[:, i]
                 iv = z * np.sqrt(variances)
                 state = concat([state, state - iv, state + iv], axis=1)
-                state.columns = ['mean', 'lower', 'upper']
+                state.columns = ["mean", "lower", "upper"]
         return state
 
-    def get_simulated_means(self, p=None, standardized=False,
-                            method="smoother"):
+    def get_simulated_means(self, p=None, standardized=False, method="smoother"):
         """Method to calculate simulated means.
 
         Simulated means are the filtered/smoothed mean estimates for
@@ -766,15 +778,14 @@ class Metran:
         else:
             observation_matrix = self.get_scaled_observation_matrix(p=p)
             observation_means = self.oseries_mean
-        (means, _) = \
-            self.kf.simulate(observation_matrix, method=method)
-        simulated_means = \
-            DataFrame(means, index=self.oseries.index,
-                      columns=self.oseries.columns) + observation_means
+        (means, _) = self.kf.simulate(observation_matrix, method=method)
+        simulated_means = (
+            DataFrame(means, index=self.oseries.index, columns=self.oseries.columns)
+            + observation_means
+        )
         return simulated_means
 
-    def get_simulated_variances(self, p=None, standardized=False,
-                                method="smoother"):
+    def get_simulated_variances(self, p=None, standardized=False, method="smoother"):
         """Method to calculate simulated variances,
 
         The simulated variances are the filtered/smoothed variances
@@ -803,15 +814,15 @@ class Metran:
             observation_matrix = self.get_observation_matrix(p=p)
         else:
             observation_matrix = self.get_scaled_observation_matrix(p=p)
-        (_, variances) = \
-            self.kf.simulate(observation_matrix, method=method)
-        simulated_variances = \
-            DataFrame(variances, index=self.oseries.index,
-                      columns=self.oseries.columns)
+        (_, variances) = self.kf.simulate(observation_matrix, method=method)
+        simulated_variances = DataFrame(
+            variances, index=self.oseries.index, columns=self.oseries.columns
+        )
         return simulated_variances
 
-    def get_simulation(self, name, p=None, alpha=0.05, standardized=False,
-                       method="smoother"):
+    def get_simulation(
+        self, name, p=None, alpha=0.05, standardized=False, method="smoother"
+    ):
         """Method to calculate simulated means for specific series.
 
         Optionally including 1-alpha confidence interval.
@@ -843,30 +854,27 @@ class Metran:
             lower and upper bounds of 95% confidence interval.
         """
         sim = None
-        means = self.get_simulated_means(p=p, standardized=standardized,
-                                         method=method)
+        means = self.get_simulated_means(p=p, standardized=standardized, method=method)
         if name in means.columns:
             sim = means.loc[:, name]
             if alpha is not None:
                 if alpha > 0 and alpha < 1:
-                    z = norm.ppf(1 - alpha / 2.)
+                    z = norm.ppf(1 - alpha / 2.0)
                 else:
                     msg = "The value of alpha must be between 0 and 1."
                     logger.error(msg)
                     raise Exception(msg)
-                variances = \
-                    self.get_simulated_variances(p=p,
-                                                 standardized=standardized,
-                                                 method=method).loc[:, name]
+                variances = self.get_simulated_variances(
+                    p=p, standardized=standardized, method=method
+                ).loc[:, name]
                 iv = z * np.sqrt(variances)
                 sim = concat([sim, sim - iv, sim + iv], axis=1)
-                sim.columns = ['mean', 'lower', 'upper']
+                sim.columns = ["mean", "lower", "upper"]
         else:
             logger.error("Unknown name: " + name)
         return sim
 
-    def decompose_simulation(self, name, p=None, standardized=False,
-                             method="smoother"):
+    def decompose_simulation(self, name, p=None, standardized=False, method="smoother"):
         """Decompose simulation into specific and common dynamic components.
 
         Method to get for observed series filtered/smoothed estimate
@@ -902,19 +910,22 @@ class Metran:
         else:
             observation_matrix = self.get_scaled_observation_matrix(p=p)
             observation_means = self.oseries_mean
-        (sdf_means, cdf_means) = \
-            self.kf.decompose(observation_matrix, method=method)
+        (sdf_means, cdf_means) = self.kf.decompose(observation_matrix, method=method)
         if name in self.oseries.columns:
-            sdf = DataFrame(sdf_means,
-                            index=self.oseries.index,
-                            columns=self.oseries.columns) \
+            sdf = (
+                DataFrame(
+                    sdf_means, index=self.oseries.index, columns=self.oseries.columns
+                )
                 + observation_means[self.oseries.columns.tolist().index(name)]
+            )
             df = sdf.loc[:, name]
-            cols = ["sdf", ]
+            cols = [
+                "sdf",
+            ]
             for k in range(self.nfactors):
-                cdf = DataFrame(cdf_means[k],
-                                index=self.oseries.index,
-                                columns=self.oseries.columns)
+                cdf = DataFrame(
+                    cdf_means[k], index=self.oseries.index, columns=self.oseries.columns
+                )
                 df = concat([df, cdf.loc[:, name]], axis=1)
                 cols.append("cdf" + str(k + 1))
             df.columns = cols
@@ -934,10 +945,11 @@ class Metran:
         """
         scale = self.oseries_std
         observation_matrix = self.get_observation_matrix(p=p)
-        np.fill_diagonal(observation_matrix[:, :self.nseries], scale)
+        np.fill_diagonal(observation_matrix[:, : self.nseries], scale)
         for i in range(self.nfactors):
-            observation_matrix[:, self.nseries + i] = \
-                np.multiply(scale, observation_matrix[:, self.nseries + i])
+            observation_matrix[:, self.nseries + i] = np.multiply(
+                scale, observation_matrix[:, self.nseries + i]
+            )
         return observation_matrix
 
     def _run_kalman(self, method, p=None):
@@ -1081,22 +1093,22 @@ class Metran:
             "tmin": str(self.settings["tmin"]),
             "tmax": str(self.settings["tmax"]),
             "freq": self.settings["freq"],
-            "solver": self.settings["solver"]
+            "solver": self.settings["solver"],
         }
 
         fit = {
             "obj": "{:.2f}".format(self.fit.obj_func),
             "nfev": self.fit.nfev,
             "AIC": "{:.2f}".format(self.fit.aic),
-            "": ""
+            "": "",
         }
 
-        parameters = self.parameters.loc[:, ["optimal", "stderr",
-                                             "initial", "vary"]]
+        parameters = self.parameters.loc[:, ["optimal", "stderr", "initial", "vary"]]
         stderr = parameters.loc[:, "stderr"] / parameters.loc[:, "optimal"]
         parameters.loc[:, "stderr"] = "-"
-        parameters.loc[parameters["vary"],
-                       "stderr"] = stderr.abs().apply("\u00B1{:.2%}".format)
+        parameters.loc[parameters["vary"], "stderr"] = stderr.abs().apply(
+            "\u00B1{:.2%}".format
+        )
         parameters.loc[~parameters["vary"].astype(bool), "initial"] = "-"
 
         # Determine the width of the fit_report based on the parameters
@@ -1105,55 +1117,58 @@ class Metran:
 
         # Create the first header with model information and stats
         w = max(width - 45, 0)
-        header = "Fit report {name:<16}{string}Fit Statistics\n" \
-                 "{line}\n".format(name=self.name[:14],
-                                   string=string.format(
-                                       "", fill=' ', align='>', width=w),
-                                   line=string.format("", fill='=', align='>',
-                                                      width=width))
+        header = "Fit report {name:<16}{string}Fit Statistics\n" "{line}\n".format(
+            name=self.name[:14],
+            string=string.format("", fill=" ", align=">", width=w),
+            line=string.format("", fill="=", align=">", width=width),
+        )
 
         basic = ""
         vw = max(width - 45, 0)
         for (val1, val2), (val3, val4) in zip(model.items(), fit.items()):
-            val4 = string.format(val4, fill=' ', align='>', width=w)
-            space = string.format("", fill=' ', align='>', width=vw)
-            basic += "{:<8} {:<16} {:} {:<7} {:}\n".format(val1, val2, space,
-                                                           val3, val4)
+            val4 = string.format(val4, fill=" ", align=">", width=w)
+            space = string.format("", fill=" ", align=">", width=vw)
+            basic += "{:<8} {:<16} {:} {:<7} {:}\n".format(
+                val1, val2, space, val3, val4
+            )
 
         # Create the parameters block
-        parameters = "\nParameters ({n_param} were optimized)\n{line}\n" \
-                     "{parameters}".format(n_param=parameters.vary.sum(),
-                                           line=string.format("", fill='=',
-                                                              align='>',
-                                                              width=width),
-                                           parameters=parameters)
+        parameters = (
+            "\nParameters ({n_param} were optimized)\n{line}\n"
+            "{parameters}".format(
+                n_param=parameters.vary.sum(),
+                line=string.format("", fill="=", align=">", width=width),
+                parameters=parameters,
+            )
+        )
 
         if output == "full":
             cor = {}
             pcor = self.fit.pcor
             for idx in pcor:
                 for col in pcor:
-                    if ((np.abs(pcor.loc[idx, col]) > 0.5) and (idx != col)
-                            and ((col, idx) not in cor.keys())):
+                    if (
+                        (np.abs(pcor.loc[idx, col]) > 0.5)
+                        and (idx != col)
+                        and ((col, idx) not in cor.keys())
+                    ):
                         cor[(idx, col)] = pcor.loc[idx, col].round(2)
 
-            cor = DataFrame(data=cor.values(), index=cor.keys(),
-                            columns=["rho"])
+            cor = DataFrame(data=cor.values(), index=cor.keys(), columns=["rho"])
             if cor.shape[0] > 0:
                 cor = cor.to_string(header=False)
             else:
                 cor = "None"
-            correlations = "\n\nParameter correlations |rho| > 0.5\n{}" \
-                           "\n{}".format(string.format("", fill='=',
-                                                       align='>',
-                                                       width=width), cor)
+            correlations = "\n\nParameter correlations |rho| > 0.5\n{}" "\n{}".format(
+                string.format("", fill="=", align=">", width=width), cor
+            )
 
         else:
             correlations = ""
 
         report = "{header}{basic}{parameters}{correlations}".format(
-            header=header, basic=basic, parameters=parameters,
-            correlations=correlations)
+            header=header, basic=basic, parameters=parameters, correlations=correlations
+        )
 
         return report
 
@@ -1182,112 +1197,108 @@ class Metran:
         model = {
             "tmin": str(self.settings["tmin"]),
             "tmax": str(self.settings["tmax"]),
-            "freq": self.settings["freq"]
+            "freq": self.settings["freq"],
         }
 
-        fit = {
-            "nfct": str(self.nfactors),
-            "fep": "{:.2f}%".format(self.fep),
-            "": ""
-        }
+        fit = {"nfct": str(self.nfactors), "fep": "{:.2f}%".format(self.fep), "": ""}
 
         # Create the state parameters block
         phi = np.diag(self.get_transition_matrix())
         q = self.get_transition_variance()
         names = [name + "_sdf" for name in self.snames]
         names.extend(["cdf" + str(i + 1) for i in range(self.nfactors)])
-        transition = DataFrame(np.array([phi, q]).T,
-                               index=names,
-                               columns=["phi", "q"])
+        transition = DataFrame(np.array([phi, q]).T, index=names, columns=["phi", "q"])
 
         # get width of index to align state parameters index
         idx_width = int(max([len(n) for n in transition.index]))
 
         # Create the communality block
-        communality = Series(self.get_communality(),
-                             index=self.oseries.columns,
-                             name="")
-        communality.index = [idx.ljust(idx_width)
-                             for idx in communality.index]
+        communality = Series(
+            self.get_communality(), index=self.oseries.columns, name=""
+        )
+        communality.index = [idx.ljust(idx_width) for idx in communality.index]
         communality = communality.apply("{:.2%}".format).to_frame()
 
         # Create the observation parameters block
         gamma = self.factors
         names = ["gamma" + str(i + 1) for i in range(self.nfactors)]
-        observation = DataFrame(gamma,
-                                index=self.oseries.columns,
-                                columns=names)
-        observation.index = [idx.ljust(idx_width)
-                             for idx in observation.index]
+        observation = DataFrame(gamma, index=self.oseries.columns, columns=names)
+        observation.index = [idx.ljust(idx_width) for idx in observation.index]
         observation.loc[:, "scale"] = self.oseries_std
         observation.loc[:, "mean"] = self.oseries_mean
 
         # Determine the width of the metran_report based on the parameters
-        width = max(len(transition.__str__().split("\n")[1]),
-                    len(observation.__str__().split("\n")[1]), 44)
+        width = max(
+            len(transition.__str__().split("\n")[1]),
+            len(observation.__str__().split("\n")[1]),
+            44,
+        )
         string = "{:{fill}{align}{width}}"
 
         # # Create the first header with results factor analysis
         w = max(width - 43, 0)
-        header = "Metran report {name:<14}{string}Factor Analysis\n" \
-            "{line}\n".format(name=self.name[:14],
-                              string=string.format(
-                                  "", fill=' ', align='>', width=w),
-                              line=string.format("", fill='=', align='>',
-                                                 width=width))
+        header = "Metran report {name:<14}{string}Factor Analysis\n" "{line}\n".format(
+            name=self.name[:14],
+            string=string.format("", fill=" ", align=">", width=w),
+            line=string.format("", fill="=", align=">", width=width),
+        )
 
         factors = ""
         for (val1, val2), (val3, val4) in zip(model.items(), fit.items()):
-            val4 = string.format(val4, fill=' ', align='>', width=w)
-            factors += "{:<8} {:<19} {:<7} {:}\n".format(val1, val2,
-                                                         val3, val4)
+            val4 = string.format(val4, fill=" ", align=">", width=w)
+            factors += "{:<8} {:<19} {:<7} {:}\n".format(val1, val2, val3, val4)
 
         # Create the transition block
-        transition = "\nState parameters\n{line}\n" \
-            "{transition}\n".format(line=string.format(
-                "", fill='=', align='>', width=width),
-                transition=transition)
+        transition = "\nState parameters\n{line}\n" "{transition}\n".format(
+            line=string.format("", fill="=", align=">", width=width),
+            transition=transition,
+        )
 
         # Create the observation block
-        observation = "\nObservation parameters\n{line}\n" \
-                      "{observation}\n".format(line=string.format(
-                          "", fill='=', align='>', width=width),
-                          observation=observation)
+        observation = "\nObservation parameters\n{line}\n" "{observation}\n".format(
+            line=string.format("", fill="=", align=">", width=width),
+            observation=observation,
+        )
 
         # Create the communality block
-        communality = "\nCommunality\n{line}\n" \
-                      "{communality}\n".format(line=string.format(
-                          "", fill='=', align='>', width=width),
-                          communality=communality)
+        communality = "\nCommunality\n{line}\n" "{communality}\n".format(
+            line=string.format("", fill="=", align=">", width=width),
+            communality=communality,
+        )
 
         if output == "full":
             cor = {}
             pcor = self.get_state_means().corr()
             for idx in pcor:
                 for col in pcor:
-                    if ((np.abs(pcor.loc[idx, col]) > 0.5) and (idx != col)
-                            and ((col, idx) not in cor.keys())):
+                    if (
+                        (np.abs(pcor.loc[idx, col]) > 0.5)
+                        and (idx != col)
+                        and ((col, idx) not in cor.keys())
+                    ):
                         cor[(idx, col)] = pcor.loc[idx, col].round(2)
 
-            cor = DataFrame(data=cor.values(), index=cor.keys(),
-                            columns=["rho"])
+            cor = DataFrame(data=cor.values(), index=cor.keys(), columns=["rho"])
             if cor.shape[0] > 0:
                 cor = cor.to_string(header=False)
             else:
                 cor = "None"
-            correlations = "\nState correlations |rho| > 0.5\n{}" \
-                           "\n{}\n".format(string.format("", fill='=',
-                                                         align='>',
-                                                         width=width), cor)
+            correlations = "\nState correlations |rho| > 0.5\n{}" "\n{}\n".format(
+                string.format("", fill="=", align=">", width=width), cor
+            )
         else:
             correlations = ""
 
-        report = "{header}{factors}{communality}{transition}" \
-            "{observation}{correlations}".format(header=header,
-                                                 factors=factors,
-                                                 communality=communality,
-                                                 transition=transition,
-                                                 observation=observation,
-                                                 correlations=correlations)
+        report = (
+            "{header}{factors}{communality}{transition}"
+            "{observation}{correlations}".format(
+                header=header,
+                factors=factors,
+                communality=communality,
+                transition=transition,
+                observation=observation,
+                correlations=correlations,
+            )
+        )
 
         return report

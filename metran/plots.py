@@ -4,7 +4,7 @@ import numpy as np
 from pandas import Timestamp
 from pastas import __version__ as psversion
 
-if psversion < '0.19.0':
+if psversion < "0.19.0":
     from pastas.plots import _get_height_ratios
 else:
     from pastas.modelplots import _get_height_ratios
@@ -28,8 +28,7 @@ class MetranPlot:
         n_ev = np.arange(self.mt.eigval.shape[0]) + 1
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
         ax.plot(n_ev, self.mt.eigval, marker="o", ms=7, mfc="none", c="C3")
-        ax.bar(n_ev, self.mt.eigval, facecolor="none",
-               edgecolor="C0", linewidth=2)
+        ax.bar(n_ev, self.mt.eigval, facecolor="none", edgecolor="C0", linewidth=2)
         ax.grid(visible=True)
         ax.set_xticks(n_ev)
         ax.set_ylabel("eigenvalue")
@@ -80,8 +79,7 @@ class MetranPlot:
             hrs = [1] * (states.columns.size)
 
         fig = plt.figure(figsize=(10, states.columns.size * 2))
-        gs = fig.add_gridspec(
-            ncols=1, nrows=states.columns.size, height_ratios=hrs)
+        gs = fig.add_gridspec(ncols=1, nrows=states.columns.size, height_ratios=hrs)
 
         for i, col in enumerate(states.columns):
             if i == 0:
@@ -132,8 +130,9 @@ class MetranPlot:
         """
 
         sim = self.mt.get_simulation(name, alpha=alpha)
-        obs = self.mt.get_observations(
-            standardized=False, masked=self.mt.kf.mask).loc[:, name]
+        obs = self.mt.get_observations(standardized=False, masked=self.mt.kf.mask).loc[
+            :, name
+        ]
 
         if tmin is None:
             tmin = sim.index[0]
@@ -148,11 +147,18 @@ class MetranPlot:
             fig, ax = plt.subplots(1, 1, figsize=(10, 4))
 
         ax.plot(sim.index, sim["mean"], label=f"simulation {name}")
-        ax.plot(obs.index, obs, marker=".", ms=3, color="k",
-                ls='none', label="observations")
+        ax.plot(
+            obs.index, obs, marker=".", ms=3, color="k", ls="none", label="observations"
+        )
         if alpha is not None:
-            ax.fill_between(sim.index, sim["lower"], sim["upper"], color="gray",
-                            alpha=0.5, label="95%-confidence interval")
+            ax.fill_between(
+                sim.index,
+                sim["lower"],
+                sim["upper"],
+                color="gray",
+                alpha=0.5,
+                label="95%-confidence interval",
+            )
         ax.legend(loc=(0, 1), ncol=3, frameon=False, numpoints=3)
         ax.grid(visible=True)
         ax.set_xlim(tmin, tmax)
@@ -185,17 +191,25 @@ class MetranPlot:
             list of axes handles
         """
         nrows = len(self.mt.snames)
-        fig, axes = plt.subplots(nrows, 1, sharex=True,
-                                 sharey=True, figsize=(10, nrows * 2))
+        fig, axes = plt.subplots(
+            nrows, 1, sharex=True, sharey=True, figsize=(10, nrows * 2)
+        )
 
         for i, name in enumerate(self.mt.snames):
-            self.simulation(name, alpha=alpha, tmin=tmin, tmax=tmax,
-                            ax=axes.flat[i])
+            self.simulation(name, alpha=alpha, tmin=tmin, tmax=tmax, ax=axes.flat[i])
         fig.tight_layout()
         return axes
 
-    def decomposition(self, name, tmin=None, tmax=None, ax=None,
-                      split=False, adjust_height=True, **kwargs):
+    def decomposition(
+        self,
+        name,
+        tmin=None,
+        tmax=None,
+        ax=None,
+        split=False,
+        adjust_height=True,
+        **kwargs,
+    ):
         """Plot decomposition into specific and common dynamic components.
 
         Parameters
@@ -252,13 +266,11 @@ class MetranPlot:
             else:
                 fig = plt.figure(figsize=(10, 4))
                 nrows = 1
-            gs = fig.add_gridspec(
-                ncols=1, nrows=nrows, height_ratios=hrs)
+            gs = fig.add_gridspec(ncols=1, nrows=nrows, height_ratios=hrs)
 
         cdfcount = 0  # color counter for common dynamic factors
 
         for i, col in enumerate(decomposition.columns):
-
             if i == 0:
                 if ax is None:
                     iax = fig.add_subplot(gs[i])
@@ -312,12 +324,20 @@ class MetranPlot:
             list of axes handles
         """
         nrows = len(self.mt.snames)
-        fig, axes = plt.subplots(nrows, 1, sharex=True, sharey=True,
-                                 figsize=(10, nrows * 2))
+        fig, axes = plt.subplots(
+            nrows, 1, sharex=True, sharey=True, figsize=(10, nrows * 2)
+        )
 
         for i, name in enumerate(self.mt.snames):
-            self.decomposition(name, tmin=tmin, tmax=tmax, ax=axes.flat[i],
-                               split=False, adjust_height=False, **kwargs)
+            self.decomposition(
+                name,
+                tmin=tmin,
+                tmax=tmax,
+                ax=axes.flat[i],
+                split=False,
+                adjust_height=False,
+                **kwargs,
+            )
 
         fig.tight_layout()
         return axes
