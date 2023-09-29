@@ -42,12 +42,52 @@ documentation = "https://metran.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 linting = ["flake8"]
-pytesting = ["pytest", "pytest-dependency"]
-coveraging = ["codecov", "pytest-cov", "codacy-coverage"]
-ci = ["metran[linting,pytesting,coveraging]"]
+formatting = ["black[jupyter]", "isort"]
+pytesting = ["pytest", "pytest-cov", "pytest-sugar"]
+coveraging = ["coverage"]
+dev = ["metran[linting,pytesting,coveraging], tox"]
 
 [tool.setuptools.dynamic]
 version = { attr = "metran.version.__version__" }
 
-[tool.pytest.ini_options]
-addopts = "--durations=0 --cov-report xml:coverage.xml --cov metran -v"
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.tox]
+legacy_tox_ini = """
+    [tox]
+    requires = tox>=4
+    env_list = format, type, lint, py38, py39, py310, py311, py312
+
+    [testenv]
+    description = run unit tests
+    extras = pytesting
+    commands =
+            pytest tests
+
+    [testenv:format]
+    description = run formatters
+    basepython = python3.9
+    extras = formatting
+    commands =
+            black src --check --verbose
+            isort src --check
+
+    [testenv:lint]
+    description = run linters
+    basepython = python3.9
+    extras = linting
+    commands =
+          flake8 . --count --select=E9,F63,F7,F82 --exit-zero --max-complexity=10 --max-line-length=80 --show-source --statistics
+
+    [testenv:coverage]
+    description = get coverage report xml
+    basepython = 3.9
+    extras = coveraging,pytesting
+    commands =
+            coverage run -m pytest tests
+            coverage xml
+"""
