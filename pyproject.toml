@@ -45,7 +45,7 @@ linting = ["flake8"]
 formatting = ["black[jupyter]", "isort"]
 pytesting = ["pytest", "pytest-cov", "pytest-sugar"]
 coveraging = ["coverage"]
-dev = ["metran[linting,pytesting,coveraging], tox"]
+dev = ["metran[linting,pytesting,coveraging]", "tox"]
 
 [tool.setuptools.dynamic]
 version = { attr = "metran.version.__version__" }
