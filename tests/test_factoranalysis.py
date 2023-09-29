@@ -1,8 +1,8 @@
-import metran
 import numpy as np
-from metran.factoranalysis import FactorAnalysis
-
 from conftest import get_data
+
+import metran
+from metran.factoranalysis import FactorAnalysis
 
 
 def test_fa_init():

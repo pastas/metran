@@ -1,8 +1,9 @@
 import os
 
-import metran
 import pandas as pd
 import pytest
+
+import metran
 
 
 def get_data():

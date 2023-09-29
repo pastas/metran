@@ -4,8 +4,7 @@ from logging import getLogger
 from os import getlogin
 
 import numpy as np
-from pandas import (DataFrame, DatetimeIndex, Series, Timedelta, Timestamp,
-                    concat)
+from pandas import DataFrame, DatetimeIndex, Series, Timedelta, Timestamp, concat
 from pandas.tseries.frequencies import to_offset
 from pastas.timeseries import TimeSeries
 from pastas.utils import initialize_logger, validate_name
@@ -17,6 +16,7 @@ if __version__ > "0.22.0":
     )
 else:
     from pastas.utils import frequency_is_supported
+
 from scipy.stats import norm
 
 from .factoranalysis import FactorAnalysis

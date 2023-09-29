@@ -16,7 +16,6 @@ import sys
 sys.path.insert(0, os.path.abspath('.'))
 from metran import __version__
 
-
 # -- Project information -----------------------------------------------------
 
 project = 'metran'
