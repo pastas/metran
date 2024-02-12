@@ -44,11 +44,13 @@ repository = "https://github.com/pastas/metran"
 documentation = "https://metran.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
+solvers = ["lmfit >= 1.0.0"]
 linting = ["flake8"]
 formatting = ["black[jupyter]", "isort"]
 pytesting = ["pytest", "pytest-cov", "pytest-sugar"]
 coveraging = ["coverage"]
-dev = ["metran[linting,pytesting,coveraging]", "tox"]
+full = ["metran[solvers]"]
+dev = ["metran[solvers,linting,pytesting,coveraging]", "tox"]
 
 [tool.setuptools.dynamic]
 version = { attr = "metran.version.__version__" }
