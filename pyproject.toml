@@ -69,7 +69,7 @@ legacy_tox_ini = """
 
     [testenv]
     description = run unit tests
-    extras = pytesting
+    extras = pytesting,solvers
     commands =
             pytest tests
 
@@ -78,8 +78,8 @@ legacy_tox_ini = """
     basepython = python3.9
     extras = formatting
     commands =
-            black . --check --verbose
-            isort . --check
+            black pastas --check --diff
+            isort pastas --check --diff --profile=black
 
     [testenv:lint]
     description = run linters
