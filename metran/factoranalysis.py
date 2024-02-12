@@ -332,7 +332,7 @@ class FactorAnalysis:
         s2 = np.copy(s)
         np.fill_diagonal(s2, 1 - psi)
         eigval, eigvec = np.linalg.eigh(s2)
-        EPS = np.finfo(np.eigval.dtype).eps
+        EPS = np.finfo(np.float64).eps
         eigval[eigval < EPS] = 100 * EPS
         if nf > 1:
             loadings = np.atleast_2d(
