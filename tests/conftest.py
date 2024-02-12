@@ -1,11 +1,11 @@
-import pytest
 from pathlib import Path
-from typing import List
-from pandas import read_csv, Series
-from numpy import array, ndarray
+from typing import Any, List
+
+import pytest
+from numpy import array
+from pandas import Series, read_csv
 
 import metran
-
 
 seriesl = [
     read_csv(
@@ -38,5 +38,5 @@ def mt(mt_init) -> metran.Metran:
 
 
 @pytest.fixture
-def corr() -> ndarray[float]:
+def corr() -> Any:
     return array([[1.0, 0.8], [0.8, 1.0]], dtype=float)

@@ -1,5 +1,6 @@
-import metran
 import numpy as np
+
+import metran
 from metran.factoranalysis import FactorAnalysis
 
 
