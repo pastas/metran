@@ -94,7 +94,7 @@ class BaseSolver:
         """
         n = x0.shape[0]
         if epsilon is None:
-            EPS = np.finfo(np.float64).eps
+            EPS = np.finfo(float).eps
             epsilon = EPS ** (1.0 / 4)
 
         cov_ok = False
