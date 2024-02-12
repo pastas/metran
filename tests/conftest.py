@@ -26,7 +26,7 @@ def series_list() -> List[Series]:
 
 
 @pytest.fixture
-def mt_init(seriesl) -> metran.Metran:
+def mt_init() -> metran.Metran:
     """Fixture that yields initialized metran object"""
     return metran.Metran(seriesl, name="B21B0214")
 
@@ -34,7 +34,9 @@ def mt_init(seriesl) -> metran.Metran:
 @pytest.fixture
 def mt(mt_init) -> metran.Metran:
     """Fixture that yields solved metran object"""
-    return mt_init.solve()
+    mt = metran.Metran(seriesl, name="B21B0214")
+    mt.solve()
+    return mt
 
 
 @pytest.fixture
