@@ -20,8 +20,7 @@ def get_data():
             header=0,
             index_col=0,
             parse_dates=True,
-            infer_datetime_format=True,
-            dayfirst=True,
+            date_format="%d-%m-%Y",
             names=[name],
         )
         series.append(ts)
