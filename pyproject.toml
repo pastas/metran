@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64.0.0", "wheel"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -22,7 +22,7 @@ maintainers = [
     { name = "D.A. Brakenhoff", email = "d.brakenhoff@artesia-water.nl" },
     { name = "M.A. Vonk", email = "m.vonk@artesia-water.nl" },
 ]
-requires-python = ">= 3.7"
+requires-python = ">= 3.8"
 keywords = ["hydrology", "groundwater", "timeseries", "analysis"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -32,6 +32,9 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Hydrology",
 ]
 
@@ -41,13 +44,55 @@ repository = "https://github.com/pastas/metran"
 documentation = "https://metran.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
+solvers = ["lmfit >= 1.0.0"]
 linting = ["flake8"]
-pytesting = ["pytest", "pytest-dependency"]
-coveraging = ["codecov", "pytest-cov", "codacy-coverage"]
-ci = ["metran[linting,pytesting,coveraging]"]
+formatting = ["black[jupyter]", "isort"]
+pytesting = ["pytest", "pytest-cov", "pytest-sugar"]
+coveraging = ["coverage"]
+full = ["metran[solvers]"]
+dev = ["metran[solvers,linting,pytesting,coveraging]", "tox"]
 
 [tool.setuptools.dynamic]
 version = { attr = "metran.version.__version__" }
 
-[tool.pytest.ini_options]
-addopts = "--durations=0 --cov-report xml:coverage.xml --cov metran -v"
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.tox]
+legacy_tox_ini = """
+    [tox]
+    requires = tox>=4
+    env_list = format, type, lint, py38, py39, py310, py311, py312
+
+    [testenv]
+    description = run unit tests
+    extras = pytesting,full
+    commands =
+            pytest tests
+
+    [testenv:format]
+    description = run formatters
+    basepython = python3.9
+    extras = formatting
+    commands =
+            black . --check --diff
+            isort . --check --diff --profile=black
+
+    [testenv:lint]
+    description = run linters
+    basepython = python3.9
+    extras = linting
+    commands =
+          flake8 . --count --select=E9,F63,F7,F82 --exit-zero --max-complexity=10 --max-line-length=80 --show-source --statistics
+
+    [testenv:coverage]
+    description = get coverage report xml
+    basepython = 3.9
+    extras = coveraging,pytesting,full
+    commands =
+            coverage run -m pytest tests
+            coverage xml
+"""

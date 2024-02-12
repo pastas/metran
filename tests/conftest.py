@@ -1,37 +1,43 @@
-import os
+from pathlib import Path
+from typing import Any, List
 
-import pandas as pd
 import pytest
+from numpy import array
+from pandas import Series, read_csv
 
 import metran
 
 
-def get_data():
-    datadir = "./examples/data"
-    series = []
-    files = [
-        os.path.join(datadir, f) for f in os.listdir(datadir) if f.endswith("_res.csv")
-    ]
-    files.sort()
-    for fi in files:
-        name = fi.split(os.sep)[-1].split(".")[0].split("_")[0]
-        ts = pd.read_csv(
+@pytest.fixture
+def series_list() -> List[Series]:
+    path = Path(__file__).parent.parent / "examples/data"
+    seriesl = [
+        read_csv(
             fi,
             header=0,
             index_col=0,
             parse_dates=True,
-            infer_datetime_format=True,
-            dayfirst=True,
-            names=[name],
-        )
-        series.append(ts)
-    return series
+            date_format="%Y-%m-%d",
+            names=[fi.stem.split("_")[0]],
+        ).squeeze()
+        for fi in path.glob("*_res.csv")
+    ]
+    return seriesl
 
 
-@pytest.fixture(scope="module")
-def mt(request):
-    """Fixture that yields metran object"""
-    series = get_data()
-    mt = metran.Metran(series, name="B21B0214")
-    mt.solve()
-    yield mt
+@pytest.fixture
+def mt_init(series_list) -> metran.Metran:
+    """Fixture that yields initialized metran object"""
+    return metran.Metran(series_list, name="B21B0214")
+
+
+@pytest.fixture
+def mt(mt_init) -> metran.Metran:
+    """Fixture that yields solved metran object"""
+    mt_init.solve()
+    return mt_init
+
+
+@pytest.fixture
+def corr() -> Any:
+    return array([[1.0, 0.8], [0.8, 1.0]], dtype=float)
