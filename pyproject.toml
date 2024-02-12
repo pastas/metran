@@ -69,7 +69,7 @@ legacy_tox_ini = """
 
     [testenv]
     description = run unit tests
-    extras = pytesting,solvers
+    extras = pytesting,full
     commands =
             pytest tests
 
@@ -91,7 +91,7 @@ legacy_tox_ini = """
     [testenv:coverage]
     description = get coverage report xml
     basepython = 3.9
-    extras = coveraging,pytesting
+    extras = coveraging,pytesting,full
     commands =
             coverage run -m pytest tests
             coverage xml
