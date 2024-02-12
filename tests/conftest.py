@@ -21,7 +21,7 @@ seriesl = [
 
 
 @pytest.fixture
-def series_list(seriesl) -> List[Series]:
+def series_list() -> List[Series]:
     return seriesl
 
 
