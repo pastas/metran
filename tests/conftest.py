@@ -7,21 +7,20 @@ from pandas import Series, read_csv
 
 import metran
 
-seriesl = [
-    read_csv(
-        fi,
-        header=0,
-        index_col=0,
-        parse_dates=True,
-        date_format="%Y-%m-%d",
-        names=[fi.stem.split("_")[0]],
-    ).squeeze()
-    for fi in Path("../examples/data").glob("*_res.csv")
-]
-
-
 @pytest.fixture
 def series_list() -> List[Series]:
+    path = Path(__file__).parent.parent / "examples/data"
+    seriesl = [
+        read_csv(
+            fi,
+            header=0,
+            index_col=0,
+            parse_dates=True,
+            date_format="%Y-%m-%d",
+            names=[fi.stem.split("_")[0]],
+        ).squeeze()
+        for fi in path.glob("*_res.csv")
+    ]
     return seriesl
 
 
