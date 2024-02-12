@@ -17,8 +17,8 @@ def test_fa_maptest(corr):
     assert nfactors == 1
 
 
-def test_fa_solve(seriesl):
-    mt = metran.Metran(seriesl, name="B21B0214")
+def test_fa_solve(series_list):
+    mt = metran.Metran(series_list, name="B21B0214")
     fa = FactorAnalysis()
     factors = fa.solve(mt.oseries)
     assert factors.shape == (5, 1)

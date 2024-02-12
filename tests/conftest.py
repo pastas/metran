@@ -15,7 +15,7 @@ seriesl = [
         parse_dates=True,
         date_format="%Y-%m-%d",
         names=[fi.stem.split("_")[0]],
-    )
+    ).squeeze()
     for fi in Path("../examples/data").glob("*_res.csv")
 ]
 
@@ -32,7 +32,7 @@ def mt_init() -> metran.Metran:
 
 
 @pytest.fixture
-def mt(mt_init) -> metran.Metran:
+def mt() -> metran.Metran:
     """Fixture that yields solved metran object"""
     mt = metran.Metran(seriesl, name="B21B0214")
     mt.solve()
