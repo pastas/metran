@@ -80,7 +80,13 @@ legacy_tox_ini = """
     description = run unit tests
     extras = pytesting,full
     commands =
-            pytest tests
+            pytest tests -m "not notebooks"
+
+    [testenv:notebooks]
+    description = run the notebooks
+    extras = ci
+    commands =
+            pytest tests -m "notebooks"
 
     [testenv:format]
     description = run formatters
