@@ -259,7 +259,7 @@ class Metran:
         float
             autoregressive model parameter
         """
-        a = to_offset(self.settings["freq"]).delta / Timedelta(1, "D")
+        a = Timedelta(to_offset(self.settings["freq"])) / Timedelta(1, "D")
         return np.exp(-a / alpha)
 
     def get_transition_matrix(self, p=None, initial=False):
@@ -443,7 +443,7 @@ class Metran:
         -------
         None
         """
-        pinit_alpha = 10
+        pinit_alpha = 10.0
         for n in range(self.nfactors):
             self.parameters.loc["cdf" + str(n + 1) + "_alpha"] = (
                 pinit_alpha,
@@ -1111,12 +1111,13 @@ class Metran:
             "": "",
         }
 
-        parameters = self.parameters.loc[:, ["optimal", "stderr", "initial", "vary"]]
+        parameters = self.parameters.loc[:, ["optimal", "stderr", "initial", "vary"]].copy()
         stderr = parameters.loc[:, "stderr"] / parameters.loc[:, "optimal"]
-        parameters.loc[:, "stderr"] = "-"
+        parameters["stderr"] = "-"
         parameters.loc[parameters["vary"], "stderr"] = stderr.abs().apply(
             "\u00B1{:.2%}".format
         )
+        parameters["initial"] = parameters["initial"].astype(str)
         parameters.loc[~parameters["vary"].astype(bool), "initial"] = "-"
 
         # Determine the width of the fit_report based on the parameters
@@ -1142,8 +1143,7 @@ class Metran:
 
         # Create the parameters block
         parameters = (
-            "\nParameters ({n_param} were optimized)\n{line}\n"
-            "{parameters}".format(
+            "\nParameters ({n_param} were optimized)\n{line}\n" "{parameters}".format(
                 n_param=parameters.vary.sum(),
                 line=string.format("", fill="=", align=">", width=width),
                 parameters=parameters,
