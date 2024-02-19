@@ -185,10 +185,10 @@ class BaseSolver:
         val = np.array(np.maximum(eigval, epsilon))
         vec = np.array(eigvec)
         with np.errstate(divide="ignore", invalid="ignore"):
-            T = 1 / (np.multiply(vec, vec) * val.T)
+            T = 1 / (vec**2 @ val.T)
             T = np.array(np.sqrt(np.diag(np.array(T).reshape((n)))))
-            B = T * vec * np.diag(np.array(np.sqrt(val)).reshape((n)))
-        out = B * B.T
+            B = T @ vec * np.diag(np.array(np.sqrt(val)).reshape((n)))
+        out = B @ B.T
         return out
 
 
