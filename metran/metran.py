@@ -1111,7 +1111,9 @@ class Metran:
             "": "",
         }
 
-        parameters = self.parameters.loc[:, ["optimal", "stderr", "initial", "vary"]].copy()
+        parameters = self.parameters.loc[
+            :, ["optimal", "stderr", "initial", "vary"]
+        ].copy()
         stderr = parameters.loc[:, "stderr"] / parameters.loc[:, "optimal"]
         parameters["stderr"] = "-"
         parameters.loc[parameters["vary"], "stderr"] = stderr.abs().apply(
@@ -1143,7 +1145,8 @@ class Metran:
 
         # Create the parameters block
         parameters = (
-            "\nParameters ({n_param} were optimized)\n{line}\n" "{parameters}".format(
+            "\nParameters ({n_param} were optimized)\n{line}\n"
+            "{parameters}".format(
                 n_param=parameters.vary.sum(),
                 line=string.format("", fill="=", align=">", width=width),
                 parameters=parameters,
