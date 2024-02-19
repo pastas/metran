@@ -45,15 +45,15 @@ documentation = "https://metran.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 solvers = ["lmfit >= 1.0.0"]
+dino = ["hydropandas"]
 linting = ["flake8"]
 formatting = ["black[jupyter]", "isort"]
 pytesting = ["pytest", "pytest-cov", "pytest-sugar"]
 coveraging = ["coverage"]
-docs = [
-    "metran",
+rtd = [
+    "metran[dino]",
     "sphinx_rtd_theme",
     "Ipython",
-    "hydropandas",
     "ipykernel",
     "nbsphinx",
     "nbsphinx_link",
@@ -70,6 +70,10 @@ line-length = 88
 [tool.isort]
 profile = "black"
 
+[tool.pytest.ini_options]
+addopts = "--strict-markers --durations=0"
+markers = ["notebooks: run notebooks"]
+
 [tool.tox]
 legacy_tox_ini = """
     [tox]
@@ -84,7 +88,7 @@ legacy_tox_ini = """
 
     [testenv:notebooks]
     description = run the notebooks
-    extras = ci
+    extras = pytesting,full,dino
     commands =
             pytest tests -m "notebooks"
 
@@ -108,6 +112,6 @@ legacy_tox_ini = """
     basepython = 3.9
     extras = coveraging,pytesting,full
     commands =
-            coverage run -m pytest tests
+            coverage run -m pytest tests -m "notebooks"
             coverage xml
 """

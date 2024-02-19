@@ -1,23 +1,26 @@
 import os
-import shutil
+from pathlib import Path
 
 import pytest
 
-pathname = os.path.join("doc", "examples")
-# get list of notebooks to run
-files = [f for f in os.listdir(pathname) if f.endswith(".ipynb")]
+pathname = Path("../examples")
+files = pathname.glob("*ipynb")
 
-testdir = "build"
-if os.path.isdir(os.path.join(pathname, testdir)):
-    shutil.rmtree(os.path.join(pathname, testdir))
-os.mkdir(os.path.join(pathname, testdir))
+testdir = pathname / "build"
+
+if pathname.is_dir():
+    pathname.rmdir()
+pathname.mkdir()
 
 
 @pytest.mark.notebooks
+@pytest.mark.parametrize("file", files)
 def test_notebook(file) -> None:
+
     cwd = os.getcwd()
 
     os.chdir(pathname)
+
     try:
         # run autotest on each notebook
         cmd = (
