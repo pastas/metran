@@ -94,11 +94,11 @@ class BaseSolver:
         """
         n = x0.shape[0]
         if epsilon is None:
-            EPS = np.MachAr().eps
-            epsilon = EPS ** (1. / 4)
+            EPS = np.finfo(float).eps
+            epsilon = EPS ** (1.0 / 4)
 
         cov_ok = False
-        while not(cov_ok or epsilon > 1000. * epsilon):
+        while not (cov_ok or epsilon > 1000.0 * epsilon):
             # allocate space for the hessian
             hessian = np.zeros((n, n))
             # the next loop fill the hessian matrix
@@ -115,10 +115,10 @@ class BaseSolver:
                     # backward difference
                     xx[j] = xx0 - d
                     fb = approx_fprime(xx, f, epsilon, callback)
-                    hessian[:j + 1, j] = (ff[:j + 1] - fb[:j + 1]) / (2 * d)
+                    hessian[: j + 1, j] = (ff[: j + 1] - fb[: j + 1]) / (2 * d)
                 else:
-                    hessian[:j + 1, j] = (ff[:j + 1] - f0[:j + 1]) / d
-                hessian[j, :j + 1] = hessian[:j + 1, j]
+                    hessian[: j + 1, j] = (ff[: j + 1] - f0[: j + 1]) / d
+                hessian[j, : j + 1] = hessian[: j + 1, j]
                 # restore initial value of x0
                 xx[j] = xx0
 
@@ -134,8 +134,8 @@ class BaseSolver:
                 if np.amin(np.diag(cov)) > 0:
                     cov_ok = True
 
-            if not(cov_ok):
-                epsilon *= 10.
+            if not (cov_ok):
+                epsilon *= 10.0
 
         return cov
 
@@ -159,8 +159,9 @@ class BaseSolver:
 
         for i in pcor.index:
             for j in pcor.columns:
-                pcor.loc[i, j] = pcov.loc[i, j] / \
-                    np.sqrt(pcov.loc[i, i] * pcov.loc[j, j])
+                pcor.loc[i, j] = pcov.loc[i, j] / np.sqrt(
+                    pcov.loc[i, i] * pcov.loc[j, j]
+                )
         return pcor
 
     @staticmethod
@@ -181,11 +182,11 @@ class BaseSolver:
         """
         n = A.shape[0]
         eigval, eigvec = np.linalg.eig(A)
-        val = np.matrix(np.maximum(eigval, epsilon))
-        vec = np.matrix(eigvec)
-        with np.errstate(divide='ignore', invalid='ignore'):
+        val = np.array(np.maximum(eigval, epsilon))
+        vec = np.array(eigvec)
+        with np.errstate(divide="ignore", invalid="ignore"):
             T = 1 / (np.multiply(vec, vec) * val.T)
-            T = np.matrix(np.sqrt(np.diag(np.array(T).reshape((n)))))
+            T = np.array(np.sqrt(np.diag(np.array(T).reshape((n)))))
             B = T * vec * np.diag(np.array(np.sqrt(val)).reshape((n)))
         out = B * B.T
         return out
@@ -212,6 +213,7 @@ class ScipySolve(BaseSolver):
     ----------
     .. [scipy_ref] https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
     """
+
     _name = "ScipySolve"
 
     def __init__(self, mt, **kwargs):
@@ -240,16 +242,17 @@ class ScipySolve(BaseSolver):
         self.vary = self.mt.parameters.vary.values.astype(bool)
         self.initial = self.mt.parameters.initial.values.copy()
         parameters = self.mt.parameters.loc[self.vary]
-        bounds = [(b[0], b[1])
-                  for b in parameters.loc[:, ["pmin", "pmax"]].values]
+        bounds = [(b[0], b[1]) for b in parameters.loc[:, ["pmin", "pmax"]].values]
 
         # Create the Minimizer object and minimize
-        self.result = minimize(fun=self.objfunction,
-                               method=method,
-                               x0=parameters.initial.values,
-                               bounds=bounds,
-                               args=(self._array_todict,),
-                               **kwargs)
+        self.result = minimize(
+            fun=self.objfunction,
+            method=method,
+            x0=parameters.initial.values,
+            bounds=bounds,
+            args=(self._array_todict,),
+            **kwargs,
+        )
 
         _stderr = np.zeros(parameters.shape[0]) * np.NaN
         if hasattr(self.result, "hess_inv"):
@@ -257,8 +260,9 @@ class ScipySolve(BaseSolver):
             _stderr = np.sqrt(np.diag(pcov))
         if np.isnan(_stderr).any():
             # calculate covariance matrix using finite differences
-            pcov = self._get_covariance(self.result.x, self.objfunction,
-                                        self._array_todict)
+            pcov = self._get_covariance(
+                self.result.x, self.objfunction, self._array_todict
+            )
             _stderr = np.sqrt(np.diag(pcov))
 
         optimal = self.initial
@@ -323,6 +327,7 @@ class LmfitSolve(BaseSolver):
     ----------
     .. [LM] https://github.com/lmfit/lmfit-py/
     """
+
     _name = "LmfitSolve"
 
     def __init__(self, mt, **kwargs):
@@ -366,26 +371,28 @@ class LmfitSolve(BaseSolver):
         parameters = lmfit.Parameters()
         self.vary = self.mt.parameters.vary.values.astype(bool)
         self.initial = self.mt.parameters.initial.values.copy()
-        p = self.mt.parameters.loc[:, ['initial', 'pmin', 'pmax', 'vary']]
+        p = self.mt.parameters.loc[:, ["initial", "pmin", "pmax", "vary"]]
         for k in p.index:
             pp = np.where(p.loc[k].isnull(), None, p.loc[k])
             if method == "lbfgsb":
                 parameters.add(k, value=pp[0], min=None, max=None, vary=pp[3])
             else:
-                parameters.add(k, value=pp[0], min=pp[1], max=pp[2],
-                               vary=pp[3])
+                parameters.add(k, value=pp[0], min=pp[1], max=pp[2], vary=pp[3])
 
         if method == "lbfgsb":
-            bounds = [(b[0], b[1]) for b in
-                      self.mt.parameters.loc[:, ['pmin', 'pmax']].values]
-            kwargs['bounds'] = bounds
+            bounds = [
+                (b[0], b[1]) for b in self.mt.parameters.loc[:, ["pmin", "pmax"]].values
+            ]
+            kwargs["bounds"] = bounds
 
         # Create the Minimizer object and minimize
-        self.mini = lmfit.Minimizer(userfcn=self.objfunction,
-                                    params=parameters,
-                                    scale_covar=False,
-                                    fcn_args=(self._lmfit_todict,),
-                                    **kwargs)
+        self.mini = lmfit.Minimizer(
+            userfcn=self.objfunction,
+            params=parameters,
+            scale_covar=False,
+            fcn_args=(self._lmfit_todict,),
+            **kwargs,
+        )
         self.result = self.mini.minimize(method=method)
 
         optimal = np.array([p.value for p in self.result.params.values()])
@@ -398,9 +405,8 @@ class LmfitSolve(BaseSolver):
                 pcov = self.result.covar
                 stderr = np.sqrt(np.diag(pcov))
         if pcov is None:
-                # calculate covariance matrix using finite differences
-            pcov = self._get_covariance(optimal, self.objfunction,
-                                        self._array_todict)
+            # calculate covariance matrix using finite differences
+            pcov = self._get_covariance(optimal, self.objfunction, self._array_todict)
         stderr[self.vary] = np.sqrt(np.diag(pcov))
 
         names = self.result.var_names

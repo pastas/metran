@@ -68,15 +68,14 @@ class FactorAnalysis:
 
         # Velicer's MAP test
         try:
-            nfactors, _ = self._maptest(correlation,
-                                        eigvec, self.eigval)
-            msg = "Number of factors according to Velicer\'s MAP test: " \
-                  + f"{nfactors}"
+            nfactors, _ = self._maptest(correlation, eigvec, self.eigval)
+            msg = "Number of factors according to Velicer's MAP test: " + f"{nfactors}"
             logger.info(msg)
             if nfactors == 0:
                 nfactors = sum(self.eigval > 1)
-                msg = "Number of factors according to Kaiser criterion: " \
-                      + f"{nfactors}"
+                msg = (
+                    "Number of factors according to Kaiser criterion: " + f"{nfactors}"
+                )
                 logger.info(msg)
             if self.maxfactors is not None:
                 nfactors = min(nfactors, self.maxfactors)
@@ -84,8 +83,7 @@ class FactorAnalysis:
             nfactors = 0
         factors = self._minres(correlation, nfactors)
 
-        if ((nfactors > 0) and (factors is not None)
-                and (np.count_nonzero(factors) > 0)):
+        if (nfactors > 0) and (factors is not None) and (np.count_nonzero(factors) > 0):
             # factors is not None and does not contain nonzero elements
             if nfactors > 1:
                 # perform varimax rotation
@@ -106,7 +104,7 @@ class FactorAnalysis:
                 if facsign < 0:
                     for i in range(factors.shape[0]):
                         if np.sign(factors[i, j]) != 0:
-                            factors[i, j] = -1. * factors[i, j]
+                            factors[i, j] = -1.0 * factors[i, j]
 
             self.factors = np.atleast_2d(factors[:, :nfactors])
 
@@ -157,9 +155,13 @@ class FactorAnalysis:
             d_old = d
             Lambda = np.dot(phi, R)
             u, s, vh = np.linalg.svd(
-                np.dot(phi.T, np.asarray(Lambda) ** 3 - (gamma / p)
-                       * np.dot(Lambda, np.diag(
-                           np.diag(np.dot(Lambda.T, Lambda))))))
+                np.dot(
+                    phi.T,
+                    np.asarray(Lambda) ** 3
+                    - (gamma / p)
+                    * np.dot(Lambda, np.diag(np.diag(np.dot(Lambda.T, Lambda)))),
+                )
+            )
             R = np.dot(u, vh)
             d = np.sum(s)
             if (d_old != 0) and (d / d_old < 1 + tol):
@@ -190,7 +192,7 @@ class FactorAnalysis:
         sorg = np.copy(s)
         try:
             ssmc = 1 - 1 / np.diag(np.linalg.inv(s))
-            if (not(covar) and np.sum(ssmc) == nf) and (nf > 1):
+            if (not (covar) and np.sum(ssmc) == nf) and (nf > 1):
                 start = 0.5 * np.ones(nf, dtype=float)
             else:
                 start = np.diag(s) - ssmc
@@ -201,9 +203,14 @@ class FactorAnalysis:
         for _ in range(len(start)):
             bounds.append((0.005, 1))
 
-        res = scopt.minimize(self._minresfun, start, method='L-BFGS-B',
-                             jac=self._minresgrad, bounds=bounds,
-                             args=(s, nf))
+        res = scopt.minimize(
+            self._minresfun,
+            start,
+            method="L-BFGS-B",
+            jac=self._minresgrad,
+            bounds=bounds,
+            args=(s, nf),
+        )
 
         loadings = self._get_loadings(res.x, sorg, nf)
 
@@ -251,27 +258,43 @@ class FactorAnalysis:
         """
 
         nvars = len(eigval)
-        fm = np.array([np.arange(nvars, dtype=float),
-                       np.arange(nvars, dtype=float)]).T
-        np.put(fm, [0, 1], ((np.sum(np.sum(np.square(cov))) - nvars)
-                            / (nvars * (nvars - 1))))
+        fm = np.array([np.arange(nvars, dtype=float), np.arange(nvars, dtype=float)]).T
+        np.put(
+            fm,
+            [0, 1],
+            ((np.sum(np.sum(np.square(cov))) - nvars) / (nvars * (nvars - 1))),
+        )
         fm4 = np.copy(fm)
-        np.put(fm4, [0, 1],
-               ((np.sum(np.sum(np.square(np.square(cov)))) - nvars)
-                / (nvars * (nvars - 1))))
+        np.put(
+            fm4,
+            [0, 1],
+            (
+                (np.sum(np.sum(np.square(np.square(cov)))) - nvars)
+                / (nvars * (nvars - 1))
+            ),
+        )
 
         for m in range(nvars - 1):
-            biga = np.atleast_2d(eigvec[:, :m + 1])
+            biga = np.atleast_2d(eigvec[:, : m + 1])
             partcov = cov - np.dot(biga, biga.T)
             # exit function with nfacts=1 if diag partcov contains negatives
             if np.amin(np.diag(partcov)) < 0:
                 return 1, 1
             d = np.diag((1 / np.sqrt(np.diag(partcov))))
             pr = np.dot(d, np.dot(partcov, d))
-            np.put(fm, [m + 1, 1], ((np.sum(np.sum(np.square(pr))) - nvars)
-                                    / (nvars * (nvars - 1))))
-            np.put(fm4, [m + 1, 1], ((np.sum(np.sum(np.square(np.square(pr))))
-                                      - nvars) / (nvars * (nvars - 1))))
+            np.put(
+                fm,
+                [m + 1, 1],
+                ((np.sum(np.sum(np.square(pr))) - nvars) / (nvars * (nvars - 1))),
+            )
+            np.put(
+                fm4,
+                [m + 1, 1],
+                (
+                    (np.sum(np.sum(np.square(np.square(pr)))) - nvars)
+                    / (nvars * (nvars - 1))
+                ),
+            )
 
         minfm = fm[0, 1]
         nfacts = 0
@@ -309,10 +332,12 @@ class FactorAnalysis:
         s2 = np.copy(s)
         np.fill_diagonal(s2, 1 - psi)
         eigval, eigvec = np.linalg.eigh(s2)
-        eigval[eigval < np.MachAr().eps] = 100 * np.MachAr().eps
+        EPS = np.finfo(float).eps
+        eigval[eigval < EPS] = 100 * EPS
         if nf > 1:
-            loadings = np.atleast_2d(np.dot(eigvec[:, :nf],
-                                            np.diag(np.sqrt(eigval[:nf]))))
+            loadings = np.atleast_2d(
+                np.dot(eigvec[:, :nf], np.diag(np.sqrt(eigval[:nf])))
+            )
         else:
             loadings = eigvec[:, 0] * np.sqrt(eigval[0])
         model = np.dot(loadings, loadings.T)
@@ -371,8 +396,7 @@ class FactorAnalysis:
         sstar = np.dot(sc, np.dot(s, sc))
         eigval, eigvec = np.linalg.eig(sstar)
         L = eigvec[:, :nf]
-        load = np.dot(L, np.diag(np.sqrt(np.maximum(
-            np.subtract(eigval[:nf], 1), 0))))
+        load = np.dot(L, np.diag(np.sqrt(np.maximum(np.subtract(eigval[:nf], 1), 0))))
         load = np.dot(np.diag(np.sqrt(psi)), load)
         return load
 
@@ -420,15 +444,17 @@ class FactorAnalysis:
         # perform eigenvalue decomposition
         eigval, eigvec = np.linalg.eig(correlation)
         if isinstance(eigval[0], np.complex128):
-            msg = "Serial correlation matrix has " + \
-                  "complex eigenvalues and eigenvectors. " + \
-                  "Factors cannot be estimated for these series."
+            msg = (
+                "Serial correlation matrix has "
+                + "complex eigenvalues and eigenvectors. "
+                + "Factors cannot be estimated for these series."
+            )
             logger.error(msg)
             raise Exception(msg)
         # sort eigenvalues and eigenvectors
         evals_order = np.argsort(-eigval)
         eigval = eigval[evals_order]
-        eigval[eigval < 0] = 0.
+        eigval[eigval < 0] = 0.0
         eigvec = eigvec[:, evals_order]
         eigvec = np.atleast_2d(np.dot(eigvec, np.sqrt(np.diag(eigval))))
         return eigval, eigvec

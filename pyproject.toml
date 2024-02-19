@@ -1,0 +1,98 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metran"
+dynamic = ["version"]
+description = "Python package to perform timeseries analysis of multiple hydrological time series using a dynamic factor model."
+license = { file = "LICENSE" }
+readme = "README.md"
+dependencies = [
+    "numpy>=1.16.5",
+    "matplotlib>=3.0",
+    "pandas>=1.0",
+    "scipy>=1.1",
+    "numba",
+    "pastas>=0.16.0",
+]
+authors = [{ name = "W.L. Berendrecht" }]
+maintainers = [
+    { name = "W.L. Berendrecht", email = "wilbert@berendrechtconsultancy.nl" },
+    { name = "D.A. Brakenhoff", email = "d.brakenhoff@artesia-water.nl" },
+    { name = "M.A. Vonk", email = "m.vonk@artesia-water.nl" },
+]
+requires-python = ">= 3.8"
+keywords = ["hydrology", "groundwater", "timeseries", "analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Other Audience",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Hydrology",
+]
+
+[project.urls]
+homepage = "https://github.com/pastas/metran"
+repository = "https://github.com/pastas/metran"
+documentation = "https://metran.readthedocs.io/en/latest/"
+
+[project.optional-dependencies]
+solvers = ["lmfit >= 1.0.0"]
+linting = ["flake8"]
+formatting = ["black[jupyter]", "isort"]
+pytesting = ["pytest", "pytest-cov", "pytest-sugar"]
+coveraging = ["coverage"]
+full = ["metran[solvers]"]
+dev = ["metran[solvers,linting,pytesting,coveraging]", "tox"]
+
+[tool.setuptools.dynamic]
+version = { attr = "metran.version.__version__" }
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.tox]
+legacy_tox_ini = """
+    [tox]
+    requires = tox>=4
+    env_list = format, type, lint, py38, py39, py310, py311, py312
+
+    [testenv]
+    description = run unit tests
+    extras = pytesting,full
+    commands =
+            pytest tests
+
+    [testenv:format]
+    description = run formatters
+    basepython = python3.9
+    extras = formatting
+    commands =
+            black . --check --diff
+            isort . --check --diff --profile=black
+
+    [testenv:lint]
+    description = run linters
+    basepython = python3.9
+    extras = linting
+    commands =
+          flake8 . --count --select=E9,F63,F7,F82 --exit-zero --max-complexity=10 --max-line-length=80 --show-source --statistics
+
+    [testenv:coverage]
+    description = get coverage report xml
+    basepython = 3.9
+    extras = coveraging,pytesting,full
+    commands =
+            coverage run -m pytest tests
+            coverage xml
+"""
