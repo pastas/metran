@@ -1145,8 +1145,7 @@ class Metran:
 
         # Create the parameters block
         parameters = (
-            "\nParameters ({n_param} were optimized)\n{line}\n"
-            "{parameters}".format(
+            "\nParameters ({n_param} were optimized)\n{line}\n{parameters}".format(
                 n_param=parameters.vary.sum(),
                 line=string.format("", fill="=", align=">", width=width),
                 parameters=parameters,
