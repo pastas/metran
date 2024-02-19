@@ -49,6 +49,15 @@ linting = ["flake8"]
 formatting = ["black[jupyter]", "isort"]
 pytesting = ["pytest", "pytest-cov", "pytest-sugar"]
 coveraging = ["coverage"]
+docs = [
+    "metran",
+    "sphinx_rtd_theme",
+    "Ipython",
+    "hydropandas",
+    "ipykernel",
+    "nbsphinx",
+    "nbsphinx_link",
+]
 full = ["metran[solvers]"]
 dev = ["metran[solvers,linting,pytesting,coveraging]", "tox"]
 
