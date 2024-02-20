@@ -111,7 +111,7 @@ legacy_tox_ini = """
     [testenv:coverage]
     description = get coverage report xml
     basepython = 3.9
-    extras = coveraging,pytesting,full
+    extras = coveraging,pytesting,full,dino
     commands =
             coverage run -m pytest tests -m "notebooks"
             coverage xml
