@@ -48,7 +48,7 @@ solvers = ["lmfit >= 1.0.0"]
 dino = ["hydropandas"]
 linting = ["flake8"]
 formatting = ["black[jupyter]", "isort"]
-pytesting = ["pytest", "pytest-cov", "pytest-sugar"]
+pytesting = ["pytest", "pytest-cov", "pytest-sugar", "jupyter"]
 coveraging = ["coverage"]
 rtd = [
     "metran[dino]",
@@ -57,6 +57,7 @@ rtd = [
     "ipykernel",
     "nbsphinx",
     "nbsphinx_link",
+    "jupyter",
 ]
 full = ["metran[solvers]"]
 dev = ["metran[solvers,linting,pytesting,coveraging]", "tox"]
