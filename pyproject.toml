@@ -45,10 +45,20 @@ documentation = "https://metran.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 solvers = ["lmfit >= 1.0.0"]
+dino = ["hydropandas"]
 linting = ["flake8"]
 formatting = ["black[jupyter]", "isort"]
-pytesting = ["pytest", "pytest-cov", "pytest-sugar"]
+pytesting = ["pytest", "pytest-cov", "pytest-sugar", "jupyter"]
 coveraging = ["coverage"]
+rtd = [
+    "metran[dino]",
+    "sphinx_rtd_theme",
+    "Ipython",
+    "ipykernel",
+    "nbsphinx",
+    "nbsphinx_link",
+    "jupyter",
+]
 full = ["metran[solvers]"]
 dev = ["metran[solvers,linting,pytesting,coveraging]", "tox"]
 
@@ -61,6 +71,10 @@ line-length = 88
 [tool.isort]
 profile = "black"
 
+[tool.pytest.ini_options]
+addopts = "--strict-markers --durations=0"
+markers = ["notebooks: run notebooks"]
+
 [tool.tox]
 legacy_tox_ini = """
     [tox]
@@ -71,7 +85,13 @@ legacy_tox_ini = """
     description = run unit tests
     extras = pytesting,full
     commands =
-            pytest tests
+            pytest tests -m "not notebooks"
+
+    [testenv:notebooks]
+    description = run the notebooks
+    extras = pytesting,full,dino
+    commands =
+            pytest tests -m "notebooks"
 
     [testenv:format]
     description = run formatters
@@ -91,7 +111,7 @@ legacy_tox_ini = """
     [testenv:coverage]
     description = get coverage report xml
     basepython = 3.9
-    extras = coveraging,pytesting,full
+    extras = coveraging,pytesting,full,dino
     commands =
             coverage run -m pytest tests
             coverage xml

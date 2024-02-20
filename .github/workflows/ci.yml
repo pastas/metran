@@ -1,4 +1,4 @@
-name: metran
+name: CI
 
 on:
   - push
