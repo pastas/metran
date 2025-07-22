@@ -5,11 +5,15 @@ import numpy as np
 from pandas import Timestamp
 from pastas import __version__ as psversion
 
-if psversion < "0.19.0":
+ps_major, ps_minor, *ps_patch = psversion.split(".")
+if int(ps_major) == 0 and int(ps_minor) < 19:
+    # pastas version < 0.19.0
     from pastas.plots import _get_height_ratios
-elif psversion >= "1.3.0":
+elif int(ps_major) >= 1 and int(ps_minor) >= 3:
+    # pastas version >= 1.3.0
     from pastas.plotting.plotutil import _get_height_ratios
 else:
+    # pastas version >= 0.19.0 and < 1.3.0
     from pastas.modelplots import _get_height_ratios
 
 
