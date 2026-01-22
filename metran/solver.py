@@ -242,7 +242,8 @@ class ScipySolve(BaseSolver):
         self.vary = self.mt.parameters.vary.values.astype(bool)
         self.initial = self.mt.parameters.initial.values.copy()
         parameters = self.mt.parameters.loc[self.vary]
-        bounds = [(b[0], b[1]) for b in parameters.loc[:, ["pmin", "pmax"]].values]
+        bounds = [(b[0], b[1])
+                  for b in parameters.loc[:, ["pmin", "pmax"]].values]
 
         # Create the Minimizer object and minimize
         self.result = minimize(
@@ -254,7 +255,7 @@ class ScipySolve(BaseSolver):
             **kwargs,
         )
 
-        _stderr = np.zeros(parameters.shape[0]) * np.NaN
+        _stderr = np.zeros(parameters.shape[0]) * np.nan
         if hasattr(self.result, "hess_inv"):
             pcov = self.result.hess_inv.todense()
             _stderr = np.sqrt(np.diag(pcov))
@@ -267,7 +268,7 @@ class ScipySolve(BaseSolver):
 
         optimal = self.initial
         optimal[self.vary] = self.result.x
-        stderr = np.zeros(len(optimal)) * np.NaN
+        stderr = np.zeros(len(optimal)) * np.nan
         stderr[self.vary] = _stderr
 
         # Set all parameter attributes
@@ -377,7 +378,8 @@ class LmfitSolve(BaseSolver):
             if method == "lbfgsb":
                 parameters.add(k, value=pp[0], min=None, max=None, vary=pp[3])
             else:
-                parameters.add(k, value=pp[0], min=pp[1], max=pp[2], vary=pp[3])
+                parameters.add(
+                    k, value=pp[0], min=pp[1], max=pp[2], vary=pp[3])
 
         if method == "lbfgsb":
             bounds = [
@@ -398,7 +400,7 @@ class LmfitSolve(BaseSolver):
         optimal = np.array([p.value for p in self.result.params.values()])
 
         # Set all parameter attributes
-        stderr = np.zeros(len(optimal)) * np.NaN
+        stderr = np.zeros(len(optimal)) * np.nan
         pcov = None
         if hasattr(self.result, "covar"):
             if self.result.covar is not None:
@@ -406,7 +408,8 @@ class LmfitSolve(BaseSolver):
                 stderr = np.sqrt(np.diag(pcov))
         if pcov is None:
             # calculate covariance matrix using finite differences
-            pcov = self._get_covariance(optimal, self.objfunction, self._array_todict)
+            pcov = self._get_covariance(
+                optimal, self.objfunction, self._array_todict)
         stderr[self.vary] = np.sqrt(np.diag(pcov))
 
         names = self.result.var_names
