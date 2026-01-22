@@ -307,10 +307,10 @@ class FactorAnalysis:
         for s in range(nvars):
             fm[s, 0] = s
             fm4[s, 0] = s
-            if fm[s, 1] < minfm:
+            if fm[s, 1] - minfm < 1e-4:
                 minfm = fm[s, 1]
                 nfacts = s
-            if fm4[s, 1] < minfm4:
+            if fm4[s, 1] - minfm4 < 1e-4:
                 minfm4 = fm4[s, 1]
                 nfacts4 = s
         return nfacts, nfacts4
