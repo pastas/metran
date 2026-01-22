@@ -16,7 +16,7 @@ class FactorAnalysis:
     Parameters
     ----------
     maxfactors : int, optional.
-        maximum number of factors to select. The default is None.
+        maximum number of factors to select, must be > 0. The default is None.
 
     Examples
     --------
@@ -27,6 +27,10 @@ class FactorAnalysis:
     """
 
     def __init__(self, maxfactors=None):
+        if maxfactors == 0:
+            msg = "The argument maxfactors must be None or greater than 0."
+            logger.error(msg)
+            raise Exception(msg)
         self.maxfactors = maxfactors
 
     def get_eigval_weight(self):

@@ -76,7 +76,8 @@ class Metran:
         # Initialize and rework observations
         self.nfactors = 0
         self.set_observations(oseries)
-        self.parameters = DataFrame(columns=["initial", "pmin", "pmax", "vary", "name"])
+        self.parameters = DataFrame(
+            columns=["initial", "pmin", "pmax", "vary", "name"])
         self.set_init_parameters()
 
         # initialize attributes
@@ -196,7 +197,7 @@ class Metran:
             logger.error(msg)
             raise Exception(msg)
 
-    def get_factors(self, oseries=None):
+    def get_factors(self, oseries=None, maxfactors=None):
         """Method to get factor loadings based on factor analysis.
 
         This method also gets some relevant results from the factor analysis
@@ -206,6 +207,8 @@ class Metran:
         ----------
         oseries : pandas.DataFrame, optional
             Series to be analyzed. The default is None.
+        maxfactors : int, optional
+            maximum number of factors to select. The default is None.
 
         Returns
         -------
@@ -214,7 +217,7 @@ class Metran:
         """
         if oseries is None:
             oseries = self.oseries
-        fa = FactorAnalysis()
+        fa = FactorAnalysis(maxfactors=maxfactors)
         self.factors = fa.solve(oseries)
         self.eigval = fa.eigval
         if self.factors is not None:
@@ -280,13 +283,15 @@ class Metran:
         """
         if p is None:
             p = self.get_parameters(initial)
-        transition_matrix = np.zeros((self.nstate, self.nstate), dtype=np.float64)
+        transition_matrix = np.zeros(
+            (self.nstate, self.nstate), dtype=np.float64)
         for n in range(self.nseries):
             name = self.snames[n] + "_sdf" + "_alpha"
             transition_matrix[n, n] = self._phi(p[name])
         for n in range(self.nfactors):
             name = "cdf" + str(n + 1) + "_alpha"
-            transition_matrix[self.nseries + n, self.nseries + n] = self._phi(p[name])
+            transition_matrix[self.nseries + n,
+                              self.nseries + n] = self._phi(p[name])
         return transition_matrix
 
     def get_transition_covariance(self, p=None, initial=False):
@@ -362,7 +367,8 @@ class Metran:
         """
         if p is None:
             p = self.get_parameters(initial)
-        observation_matrix = np.zeros((self.nseries, self.nstate), dtype=np.float64)
+        observation_matrix = np.zeros(
+            (self.nseries, self.nstate), dtype=np.float64)
         observation_matrix[:, : self.nseries] = np.eye(self.nseries)
         for n in range(self.nseries):
             for k in range(self.nfactors):
@@ -562,7 +568,8 @@ class Metran:
             raise TypeError(msg)
 
         if oseries.shape[1] < 2:
-            msg = "Metran requires at least 2 series, found " + str(oseries.shape[1])
+            msg = "Metran requires at least 2 series, found " + \
+                str(oseries.shape[1])
             logger.error(msg)
             raise Exception(msg)
 
@@ -676,7 +683,8 @@ class Metran:
             means = self.kf.filtered_state_means
         else:
             means = self.kf.smoothed_state_means
-        state_means = DataFrame(means, index=self.oseries.index, columns=columns)
+        state_means = DataFrame(
+            means, index=self.oseries.index, columns=columns)
         return state_means
 
     def get_state_variances(self, p=None, method="smoother"):
@@ -707,7 +715,8 @@ class Metran:
             var = np.vstack([np.diag(cov[i]) for i in range(n_timesteps)])
         columns = [name + "_sdf" for name in self.snames]
         columns.extend(["cdf" + str(i + 1) for i in range(self.nfactors)])
-        state_variances = DataFrame(var, index=self.oseries.index, columns=columns)
+        state_variances = DataFrame(
+            var, index=self.oseries.index, columns=columns)
         return state_variances
 
     def get_state(self, i, p=None, alpha=0.05, method="smoother"):
@@ -749,7 +758,8 @@ class Metran:
                     msg = "The value of alpha must be between 0 and 1."
                     logger.error(msg)
                     raise Exception(msg)
-                variances = self.get_state_variances(p=p, method=method).iloc[:, i]
+                variances = self.get_state_variances(
+                    p=p, method=method).iloc[:, i]
                 iv = z * np.sqrt(variances)
                 state = concat([state, state - iv, state + iv], axis=1)
                 state.columns = ["mean", "lower", "upper"]
@@ -788,7 +798,8 @@ class Metran:
             observation_means = self.oseries_mean
         (means, _) = self.kf.simulate(observation_matrix, method=method)
         simulated_means = (
-            DataFrame(means, index=self.oseries.index, columns=self.oseries.columns)
+            DataFrame(means, index=self.oseries.index,
+                      columns=self.oseries.columns)
             + observation_means
         )
         return simulated_means
@@ -862,7 +873,8 @@ class Metran:
             lower and upper bounds of 95% confidence interval.
         """
         sim = None
-        means = self.get_simulated_means(p=p, standardized=standardized, method=method)
+        means = self.get_simulated_means(
+            p=p, standardized=standardized, method=method)
         if name in means.columns:
             sim = means.loc[:, name]
             if alpha is not None:
@@ -918,7 +930,8 @@ class Metran:
         else:
             observation_matrix = self.get_scaled_observation_matrix(p=p)
             observation_means = self.oseries_mean
-        (sdf_means, cdf_means) = self.kf.decompose(observation_matrix, method=method)
+        (sdf_means, cdf_means) = self.kf.decompose(
+            observation_matrix, method=method)
         if name in self.oseries.columns:
             sdf = (
                 DataFrame(
@@ -988,7 +1001,7 @@ class Metran:
             elif self.kf.smoothed_state_means is None:
                 self.kf.run_smoother()
 
-    def solve(self, solver=None, report=True, engine="numba", **kwargs):
+    def solve(self, solver=None, report=True, engine="numba", maxfactors=None, **kwargs):
         """Method to solve the time series model.
 
         Parameters
@@ -1005,6 +1018,8 @@ class Metran:
         engine: str, optional
             Engine used for the Kalman filter, by default 'numba' which is the
             fastest choice but 'numpy' is also available, but is slower.
+        maxfactors : int, optional
+            maximum number of factors to select. The default is None.
         **kwargs: dict, optional
             All keyword arguments will be passed onto minimization method
             from the solver.
@@ -1019,7 +1034,7 @@ class Metran:
         """
 
         # Perform factor analysis to get factors
-        factors = self.get_factors(self.oseries)
+        factors = self.get_factors(self.oseries, maxfactors=maxfactors)
         if factors is not None:
             # Initialize Kalmanfilter
             self._init_kalmanfilter(self.oseries, engine=engine)
@@ -1164,7 +1179,8 @@ class Metran:
                     ):
                         cor[(idx, col)] = pcor.loc[idx, col].round(2)
 
-            cor = DataFrame(data=cor.values(), index=cor.keys(), columns=["rho"])
+            cor = DataFrame(data=cor.values(),
+                            index=cor.keys(), columns=["rho"])
             if cor.shape[0] > 0:
                 cor = cor.to_string(header=False)
             else:
@@ -1210,14 +1226,16 @@ class Metran:
             "freq": self.settings["freq"],
         }
 
-        fit = {"nfct": str(self.nfactors), "fep": "{:.2f}%".format(self.fep), "": ""}
+        fit = {"nfct": str(self.nfactors),
+               "fep": "{:.2f}%".format(self.fep), "": ""}
 
         # Create the state parameters block
         phi = np.diag(self.get_transition_matrix())
         q = self.get_transition_variance()
         names = [name + "_sdf" for name in self.snames]
         names.extend(["cdf" + str(i + 1) for i in range(self.nfactors)])
-        transition = DataFrame(np.array([phi, q]).T, index=names, columns=["phi", "q"])
+        transition = DataFrame(
+            np.array([phi, q]).T, index=names, columns=["phi", "q"])
 
         # get width of index to align state parameters index
         idx_width = int(max([len(n) for n in transition.index]))
@@ -1232,7 +1250,8 @@ class Metran:
         # Create the observation parameters block
         gamma = self.factors
         names = ["gamma" + str(i + 1) for i in range(self.nfactors)]
-        observation = DataFrame(gamma, index=self.oseries.columns, columns=names)
+        observation = DataFrame(
+            gamma, index=self.oseries.columns, columns=names)
         observation.index = [idx.ljust(idx_width) for idx in observation.index]
         observation.loc[:, "scale"] = self.oseries_std
         observation.loc[:, "mean"] = self.oseries_mean
@@ -1256,7 +1275,8 @@ class Metran:
         factors = ""
         for (val1, val2), (val3, val4) in zip(model.items(), fit.items()):
             val4 = string.format(val4, fill=" ", align=">", width=w)
-            factors += "{:<8} {:<19} {:<7} {:}\n".format(val1, val2, val3, val4)
+            factors += "{:<8} {:<19} {:<7} {:}\n".format(
+                val1, val2, val3, val4)
 
         # Create the transition block
         transition = "\nState parameters\n{line}\n" "{transition}\n".format(
@@ -1288,7 +1308,8 @@ class Metran:
                     ):
                         cor[(idx, col)] = pcor.loc[idx, col].round(2)
 
-            cor = DataFrame(data=cor.values(), index=cor.keys(), columns=["rho"])
+            cor = DataFrame(data=cor.values(),
+                            index=cor.keys(), columns=["rho"])
             if cor.shape[0] > 0:
                 cor = cor.to_string(header=False)
             else:
