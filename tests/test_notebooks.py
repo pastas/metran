@@ -7,7 +7,7 @@ import pytest
 from nbconvert.preprocessors import ExecutePreprocessor
 
 nbdirs = [
-    Path("./examples/"),
+    Path("./docs/examples/"),
 ]
 
 
