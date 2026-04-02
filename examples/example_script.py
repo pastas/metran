@@ -1,3 +1,5 @@
+"""Example script showcasing Metran."""
+
 import pandas as pd
 
 import metran
