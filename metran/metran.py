@@ -9,6 +9,7 @@ from pandas.tseries.frequencies import to_offset
 from pastas.timeseries import TimeSeries
 from pastas.utils import initialize_logger, validate_name
 from pastas.version import __version__
+from pastas import set_use_numba
 
 if __version__ > "0.22.0":
     from pastas.timeseries_utils import (
@@ -26,6 +27,7 @@ from .solver import ScipySolve
 
 logger = getLogger(__name__)
 initialize_logger(logger)
+set_use_numba(True)
 
 
 class Metran:
