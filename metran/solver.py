@@ -1,4 +1,4 @@
-"""This module contains the  solver that is available for Pastas Metran.
+"""Solvers available for Pastas Metran.
 
 All solvers inherit from the BaseSolver class, which contains methods to
 obtain the object function value and numerical approximation of the
@@ -22,14 +22,17 @@ initialize_logger(logger)
 
 
 class BaseSolver:
-    _name = "BaseSolver"
-    __doc__ = """All solver instances inherit from the BaseSolver class.
+    """Base class for all solvers.
+
+    All solver instances inherit from the BaseSolver class.
 
     Attributes
     ----------
     mt : Metran instance
 
     """
+
+    _name = "BaseSolver"
 
     def __init__(self, mt, **kwargs):
         self.mt = mt
@@ -40,7 +43,7 @@ class BaseSolver:
         self.result = None
 
     def objfunction(self, p, callback):
-        """Method to get objective function used by solver.
+        """Get objective function value used by solver.
 
         Parameters
         ----------
@@ -141,7 +144,7 @@ class BaseSolver:
 
     @staticmethod
     def _get_correlations(pcov):
-        """Internal method to obtain the parameter correlations.
+        """Obtain the parameter correlations.
 
         Parameter correlations are derived from the covariance matrix.
 
@@ -206,7 +209,6 @@ class ScipySolve(BaseSolver):
 
     Examples
     --------
-
     >>> mt.solve(solver=ps.ScipySolve)
 
     References
@@ -220,7 +222,7 @@ class ScipySolve(BaseSolver):
         BaseSolver.__init__(self, mt=mt, **kwargs)
 
     def solve(self, method="l-bfgs-b", **kwargs):
-        """Method to run solver and optimize parameters.
+        """Run solver and optimize parameters.
 
         Parameters
         ----------
@@ -237,13 +239,11 @@ class ScipySolve(BaseSolver):
         params : lmfit.Parameters instance
             Ordered dictionary of Parameter objects.
         """
-
         # Deal with the parameters
         self.vary = self.mt.parameters.vary.values.astype(bool)
         self.initial = self.mt.parameters.initial.values.copy()
         parameters = self.mt.parameters.loc[self.vary]
-        bounds = [(b[0], b[1])
-                  for b in parameters.loc[:, ["pmin", "pmax"]].values]
+        bounds = [(b[0], b[1]) for b in parameters.loc[:, ["pmin", "pmax"]].values]
 
         # Create the Minimizer object and minimize
         self.result = minimize(
@@ -321,7 +321,6 @@ class LmfitSolve(BaseSolver):
 
     Examples
     --------
-
     >>> mt.solve(solver=ps.LmfitSolve)
 
     References
@@ -339,7 +338,7 @@ class LmfitSolve(BaseSolver):
         except ImportError:
             msg = "lmfit not installed. Please install lmfit first."
             logger.error(msg)
-            raise ImportError(msg)
+            raise ImportError(msg) from None
 
         self.mt = mt
 
@@ -350,7 +349,7 @@ class LmfitSolve(BaseSolver):
         self.result = None
 
     def solve(self, method="lbfgsb", **kwargs):
-        """Method to run solver and optimize parameters.
+        """Run solver and optimize parameters.
 
         Parameters
         ----------
@@ -367,7 +366,6 @@ class LmfitSolve(BaseSolver):
         params : lmfit.Parameters instance
             Ordered dictionary of Parameter objects.
         """
-
         # Deal with the parameters
         parameters = lmfit.Parameters()
         self.vary = self.mt.parameters.vary.values.astype(bool)
@@ -378,8 +376,7 @@ class LmfitSolve(BaseSolver):
             if method == "lbfgsb":
                 parameters.add(k, value=pp[0], min=None, max=None, vary=pp[3])
             else:
-                parameters.add(
-                    k, value=pp[0], min=pp[1], max=pp[2], vary=pp[3])
+                parameters.add(k, value=pp[0], min=pp[1], max=pp[2], vary=pp[3])
 
         if method == "lbfgsb":
             bounds = [
@@ -408,8 +405,7 @@ class LmfitSolve(BaseSolver):
                 stderr = np.sqrt(np.diag(pcov))
         if pcov is None:
             # calculate covariance matrix using finite differences
-            pcov = self._get_covariance(
-                optimal, self.objfunction, self._array_todict)
+            pcov = self._get_covariance(optimal, self.objfunction, self._array_todict)
         stderr[self.vary] = np.sqrt(np.diag(pcov))
 
         names = self.result.var_names

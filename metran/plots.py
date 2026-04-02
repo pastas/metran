@@ -1,4 +1,4 @@
-"""This module contains the Plot helper class for Metran."""
+"""Plot helper class for Metran."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,12 +28,10 @@ class MetranPlot:
         ax : matplotlib.pyplot.Axes
             plot axis handle
         """
-
         n_ev = np.arange(self.mt.eigval.shape[0]) + 1
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
         ax.plot(n_ev, self.mt.eigval, marker="o", ms=7, mfc="none", c="C3")
-        ax.bar(n_ev, self.mt.eigval, facecolor="none",
-               edgecolor="C0", linewidth=2)
+        ax.bar(n_ev, self.mt.eigval, facecolor="none", edgecolor="C0", linewidth=2)
         ax.grid(visible=True)
         ax.set_xticks(n_ev)
         ax.set_ylabel("eigenvalue")
@@ -58,7 +56,6 @@ class MetranPlot:
         axes : list of matplotlib.pyplot.Axes
             list of axes handles
         """
-
         # Get all smoothed state means
         states = self.mt.get_state_means()
 
@@ -84,8 +81,7 @@ class MetranPlot:
             hrs = [1] * (states.columns.size)
 
         fig = plt.figure(figsize=(10, states.columns.size * 2))
-        gs = fig.add_gridspec(
-            ncols=1, nrows=states.columns.size, height_ratios=hrs)
+        gs = fig.add_gridspec(ncols=1, nrows=states.columns.size, height_ratios=hrs)
 
         for i, col in enumerate(states.columns):
             if i == 0:
@@ -134,7 +130,6 @@ class MetranPlot:
         ax : matplotlib.pyplot.Axes
             plot axis handle
         """
-
         sim = self.mt.get_simulation(name, alpha=alpha)
         obs = self.mt.get_observations(standardized=False, masked=self.mt.kf.mask).loc[
             :, name
@@ -202,8 +197,7 @@ class MetranPlot:
         )
 
         for i, name in enumerate(self.mt.snames):
-            self.simulation(name, alpha=alpha, tmin=tmin,
-                            tmax=tmax, ax=axes.flat[i])
+            self.simulation(name, alpha=alpha, tmin=tmin, tmax=tmax, ax=axes.flat[i])
         fig.tight_layout()
         return axes
 

@@ -1,13 +1,16 @@
+"""Utility functions for Metran."""
+
+from sys import version as os_version
+
+from matplotlib import __version__ as mpl_version
+from numpy import __version__ as np_version
+from pandas import __version__ as pd_version
+from pastas import __version__ as ps_version
+from scipy import __version__ as sc_version
+
+
 def show_versions():
-    """Method to print the version of dependencies."""
-    from sys import version as os_version
-
-    from matplotlib import __version__ as mpl_version
-    from numpy import __version__ as np_version
-    from pandas import __version__ as pd_version
-    from pastas import __version__ as ps_version
-    from scipy import __version__ as sc_version
-
+    """Print the versions of dependencies."""
     msg = (
         f"Python version: {os_version}\n"
         f"numpy version: {np_version}\n"
