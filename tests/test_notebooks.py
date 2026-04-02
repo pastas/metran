@@ -18,6 +18,7 @@ def get_notebooks():
         nblist += [nb for nb in nbdir.glob("*.ipynb") if nb.name not in skip]
     return nblist
 
+
 @pytest.mark.notebooks
 @pytest.mark.parametrize("pth", get_notebooks())
 def test_notebook_py(pth):
