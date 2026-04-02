@@ -1,44 +1,33 @@
-import os
+# ruff: noqa: D100, D103
+
 from pathlib import Path
 
+import nbformat
 import pytest
+from nbconvert.preprocessors import ExecutePreprocessor
 
-pathname = Path("./examples/")
-files = pathname.glob("*ipynb")
-
-testdir = pathname / "build"
-
-if testdir.is_dir():
-    testdir.rmdir()
-testdir.mkdir()
+nbdirs = [
+    Path("./examples/"),
+]
 
 
-@pytest.mark.notebooks
-@pytest.mark.parametrize("file", files)
-def test_notebook(file) -> None:
+def get_notebooks():
+    skip = []
+    nblist = []
+    for nbdir in nbdirs:
+        nblist += [nb for nb in nbdir.glob("*.ipynb") if nb.name not in skip]
+    return nblist
 
-    cwd = os.getcwd()
 
-    os.chdir(pathname)
-
-    try:
-        # run autotest on each notebook
-        cmd = (
-            "jupyter "
-            + "nbconvert "
-            + "--ExecutePreprocessor.timeout=600 "
-            + "--to "
-            + "notebook "
-            + "--execute "
-            + '"{}" '.format(file.name)
-            + "--output-dir "
-            + "{} ".format(testdir)
-        )
-        ival = os.system(cmd)
-        msg = "could not run {}".format(file.name)
-        assert ival == 0, msg
-        assert os.path.isfile(os.path.join(testdir, file.name)), msg
-    except Exception as e:
-        os.chdir(cwd)
-        raise Exception(e)
-    os.chdir(cwd)
+@pytest.mark.parametrize("pth", get_notebooks())
+def test_notebook_py(pth):
+    pth = Path(pth)
+    with open(pth, "r", encoding="utf-8") as f:
+        nb = nbformat.read(f, as_version=4)
+        ep = ExecutePreprocessor(timeout=600, kernel_name="python3")
+        try:
+            assert ep.preprocess(nb, {"metadata": {"path": pth.parent}}) is not None, (
+                f"Got empty notebook for {pth.name}"
+            )
+        except Exception as e:
+            pytest.fail(reason=f"Failed executing {pth.name}: {e}")
