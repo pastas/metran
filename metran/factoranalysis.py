@@ -16,7 +16,7 @@ class FactorAnalysis:
     Parameters
     ----------
     maxfactors : int, optional.
-        maximum number of factors to select. The default is None.
+        maximum number of factors to select, must be > 0. The default is None.
 
     Examples
     --------
@@ -27,10 +27,14 @@ class FactorAnalysis:
     """
 
     def __init__(self, maxfactors=None):
+        if isinstance(maxfactors, (int, np.integer)) and maxfactors <= 0:
+            msg = "The argument maxfactors must be None or greater than 0."
+            logger.error(msg)
+            raise Exception(msg)
         self.maxfactors = maxfactors
 
     def get_eigval_weight(self):
-        """Method to get the relative weight of each eigenvalue.
+        """Get the relative weight of each eigenvalue.
 
         Returns
         -------
@@ -40,7 +44,7 @@ class FactorAnalysis:
         return self.eigval / np.sum(self.eigval)
 
     def solve(self, oseries):
-        """Method to perform factor analysis.
+        """Perform factor analysis.
 
         Factor analysis is based on the minres algorithm.
         The number of eigenvalues is determined by MAP test.
@@ -119,7 +123,7 @@ class FactorAnalysis:
 
     @staticmethod
     def _rotate(phi, gamma=1, maxiter=20, tol=1e-6):
-        """Internal method to rotate factor loadings.
+        """Rotate factor loadings.
 
         Uses varimax, quartimax, equamax, or parsimax rotation.
 
@@ -171,7 +175,7 @@ class FactorAnalysis:
         return phi_rot
 
     def _minres(self, s, nf, covar=False):
-        """Internal method for estimating factor loadings.
+        """Estimate factor loadings.
 
         Uses the minimum residuals (minres) algorithm.
 
@@ -196,10 +200,10 @@ class FactorAnalysis:
                 start = 0.5 * np.ones(nf, dtype=float)
             else:
                 start = np.diag(s) - ssmc
-        except:
+        except (np.linalg.LinAlgError, ValueError):
             return
 
-        bounds = list()
+        bounds = []
         for _ in range(len(start)):
             bounds.append((0.005, 1))
 
@@ -218,7 +222,7 @@ class FactorAnalysis:
 
     @staticmethod
     def _maptest(cov, eigvec, eigval):
-        """Internal method to run Velicer's MAP test.
+        """Run Velicer's MAP test.
 
         Determines the number of factors to be used. This method includes
         two variations of the MAP test: the orginal and the revised MAP test.
@@ -256,7 +260,6 @@ class FactorAnalysis:
         E. Helmes, eds., Problems and solutions in human assessment.
         Boston: Kluwer.
         """
-
         nvars = len(eigval)
         fm = np.array([np.arange(nvars, dtype=float), np.arange(nvars, dtype=float)]).T
         np.put(
@@ -303,17 +306,17 @@ class FactorAnalysis:
         for s in range(nvars):
             fm[s, 0] = s
             fm4[s, 0] = s
-            if fm[s, 1] < minfm:
+            if fm[s, 1] - minfm < 1e-4:
                 minfm = fm[s, 1]
                 nfacts = s
-            if fm4[s, 1] < minfm4:
+            if fm4[s, 1] - minfm4 < 1e-4:
                 minfm4 = fm4[s, 1]
                 nfacts4 = s
         return nfacts, nfacts4
 
     @staticmethod
     def _minresfun(psi, s, nf):
-        """Function to be minimized in minimum residuals (minres) algorithm.
+        """Minimize in minimum residuals (minres) algorithm.
 
         Parameters
         ----------
@@ -347,7 +350,7 @@ class FactorAnalysis:
         return np.sum(residual)
 
     def _minresgrad(self, psi, s, nf):
-        """Internal method to calculate jacobian of function.
+        """Calculate jacobian of function.
 
         Jacobian to be minimized in minimum residuals (minres) algorithm.
 
@@ -365,7 +368,6 @@ class FactorAnalysis:
         jac : array
             Jacobian of minresfun.
         """
-
         load = self._get_loadings(psi, s, nf)
         g = np.dot(load, load.T) + np.diag(psi) - s
         jac = np.diag(g) / np.square(psi)
@@ -374,7 +376,7 @@ class FactorAnalysis:
 
     @staticmethod
     def _get_loadings(psi, s, nf):
-        """Internal method to estimate matrix of factor loadings.
+        """Estimate matrix of factor loadings.
 
         Based on minimum residuals (minres) algorithm.
 
@@ -402,7 +404,7 @@ class FactorAnalysis:
 
     @staticmethod
     def _get_correlations(oseries):
-        """Internal method to calculate correlations for multivariate series.
+        """Calculate correlations for multivariate series.
 
         Parameters
         ----------
@@ -419,7 +421,7 @@ class FactorAnalysis:
 
     @staticmethod
     def _get_eigval(correlation):
-        """Internal method to get eigenvalues and eigenvectors.
+        """Get eigenvalues and eigenvectors.
 
         Get eigenvalues and eigenvectors based on correlation matrix.
 

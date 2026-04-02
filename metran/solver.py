@@ -1,4 +1,4 @@
-"""This module contains the  solver that is available for Pastas Metran.
+"""Solvers available for Pastas Metran.
 
 All solvers inherit from the BaseSolver class, which contains methods to
 obtain the object function value and numerical approximation of the
@@ -22,14 +22,17 @@ initialize_logger(logger)
 
 
 class BaseSolver:
-    _name = "BaseSolver"
-    __doc__ = """All solver instances inherit from the BaseSolver class.
+    """Base class for all solvers.
+
+    All solver instances inherit from the BaseSolver class.
 
     Attributes
     ----------
     mt : Metran instance
 
     """
+
+    _name = "BaseSolver"
 
     def __init__(self, mt, **kwargs):
         self.mt = mt
@@ -40,7 +43,7 @@ class BaseSolver:
         self.result = None
 
     def objfunction(self, p, callback):
-        """Method to get objective function used by solver.
+        """Get objective function value used by solver.
 
         Parameters
         ----------
@@ -141,7 +144,7 @@ class BaseSolver:
 
     @staticmethod
     def _get_correlations(pcov):
-        """Internal method to obtain the parameter correlations.
+        """Obtain the parameter correlations.
 
         Parameter correlations are derived from the covariance matrix.
 
@@ -206,7 +209,6 @@ class ScipySolve(BaseSolver):
 
     Examples
     --------
-
     >>> mt.solve(solver=ps.ScipySolve)
 
     References
@@ -220,7 +222,7 @@ class ScipySolve(BaseSolver):
         BaseSolver.__init__(self, mt=mt, **kwargs)
 
     def solve(self, method="l-bfgs-b", **kwargs):
-        """Method to run solver and optimize parameters.
+        """Run solver and optimize parameters.
 
         Parameters
         ----------
@@ -237,7 +239,6 @@ class ScipySolve(BaseSolver):
         params : lmfit.Parameters instance
             Ordered dictionary of Parameter objects.
         """
-
         # Deal with the parameters
         self.vary = self.mt.parameters.vary.values.astype(bool)
         self.initial = self.mt.parameters.initial.values.copy()
@@ -254,7 +255,7 @@ class ScipySolve(BaseSolver):
             **kwargs,
         )
 
-        _stderr = np.zeros(parameters.shape[0]) * np.NaN
+        _stderr = np.zeros(parameters.shape[0]) * np.nan
         if hasattr(self.result, "hess_inv"):
             pcov = self.result.hess_inv.todense()
             _stderr = np.sqrt(np.diag(pcov))
@@ -267,7 +268,7 @@ class ScipySolve(BaseSolver):
 
         optimal = self.initial
         optimal[self.vary] = self.result.x
-        stderr = np.zeros(len(optimal)) * np.NaN
+        stderr = np.zeros(len(optimal)) * np.nan
         stderr[self.vary] = _stderr
 
         # Set all parameter attributes
@@ -320,7 +321,6 @@ class LmfitSolve(BaseSolver):
 
     Examples
     --------
-
     >>> mt.solve(solver=ps.LmfitSolve)
 
     References
@@ -338,7 +338,7 @@ class LmfitSolve(BaseSolver):
         except ImportError:
             msg = "lmfit not installed. Please install lmfit first."
             logger.error(msg)
-            raise ImportError(msg)
+            raise ImportError(msg) from None
 
         self.mt = mt
 
@@ -349,7 +349,7 @@ class LmfitSolve(BaseSolver):
         self.result = None
 
     def solve(self, method="lbfgsb", **kwargs):
-        """Method to run solver and optimize parameters.
+        """Run solver and optimize parameters.
 
         Parameters
         ----------
@@ -366,7 +366,6 @@ class LmfitSolve(BaseSolver):
         params : lmfit.Parameters instance
             Ordered dictionary of Parameter objects.
         """
-
         # Deal with the parameters
         parameters = lmfit.Parameters()
         self.vary = self.mt.parameters.vary.values.astype(bool)
@@ -398,7 +397,7 @@ class LmfitSolve(BaseSolver):
         optimal = np.array([p.value for p in self.result.params.values()])
 
         # Set all parameter attributes
-        stderr = np.zeros(len(optimal)) * np.NaN
+        stderr = np.zeros(len(optimal)) * np.nan
         pcov = None
         if hasattr(self.result, "covar"):
             if self.result.covar is not None:

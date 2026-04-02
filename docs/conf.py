@@ -1,3 +1,5 @@
+"""Sphinx configuration for the Metran documentation."""
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -45,8 +47,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "IPython.sphinxext.ipython_console_highlighting",  # lowercase didn't work
     "sphinx.ext.autosectionlabel",
-    "nbsphinx",
-    "nbsphinx_link",
+    "myst_nb",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

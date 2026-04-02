@@ -1,3 +1,6 @@
+# ruff: noqa: D100, D103
+
+
 def test_scree_plot(mt):
     mt.plots.scree_plot()
 

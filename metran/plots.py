@@ -1,13 +1,14 @@
-"""This module contains the Plot helper class for Metran."""
+"""Plot helper class for Metran."""
 
 import matplotlib.pyplot as plt
 import numpy as np
+from packaging.version import Version
 from pandas import Timestamp
 from pastas import __version__ as psversion
 
-if psversion < "0.19.0":
+if Version(psversion) < Version("0.19.0"):
     from pastas.plots import _get_height_ratios
-elif psversion >= "1.3.0":
+elif Version(psversion) >= Version("1.3.0"):
     from pastas.plotting.plotutil import _get_height_ratios
 else:
     from pastas.modelplots import _get_height_ratios
@@ -27,7 +28,6 @@ class MetranPlot:
         ax : matplotlib.pyplot.Axes
             plot axis handle
         """
-
         n_ev = np.arange(self.mt.eigval.shape[0]) + 1
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
         ax.plot(n_ev, self.mt.eigval, marker="o", ms=7, mfc="none", c="C3")
@@ -56,7 +56,6 @@ class MetranPlot:
         axes : list of matplotlib.pyplot.Axes
             list of axes handles
         """
-
         # Get all smoothed state means
         states = self.mt.get_state_means()
 
@@ -131,7 +130,6 @@ class MetranPlot:
         ax : matplotlib.pyplot.Axes
             plot axis handle
         """
-
         sim = self.mt.get_simulation(name, alpha=alpha)
         obs = self.mt.get_observations(standardized=False, masked=self.mt.kf.mask).loc[
             :, name

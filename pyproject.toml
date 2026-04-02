@@ -9,12 +9,12 @@ description = "Python package to perform timeseries analysis of multiple hydrolo
 license = { file = "LICENSE" }
 readme = "README.md"
 dependencies = [
-    "numpy>=1.16.5",
-    "matplotlib>=3.0",
-    "pandas>=1.0",
-    "scipy>=1.1",
+    "numpy",
+    "matplotlib",
+    "pandas >= 2.2.2, < 3.0",
+    "scipy",
     "numba",
-    "pastas>=0.16.0",
+    "pastas",
 ]
 authors = [{ name = "W.L. Berendrecht" }]
 maintainers = [
@@ -22,7 +22,7 @@ maintainers = [
     { name = "D.A. Brakenhoff", email = "d.brakenhoff@artesia-water.nl" },
     { name = "M.A. Vonk", email = "m.vonk@artesia-water.nl" },
 ]
-requires-python = ">= 3.8"
+requires-python = ">= 3.11"
 keywords = ["hydrology", "groundwater", "timeseries", "analysis"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -30,11 +30,9 @@ classifiers = [
     "Intended Audience :: Other Audience",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Hydrology",
 ]
 
@@ -46,30 +44,48 @@ documentation = "https://metran.readthedocs.io/en/latest/"
 [project.optional-dependencies]
 solvers = ["lmfit >= 1.0.0"]
 dino = ["hydropandas"]
-linting = ["flake8"]
-formatting = ["black[jupyter]", "isort"]
-pytesting = ["pytest", "pytest-cov", "pytest-sugar", "jupyter"]
-coveraging = ["coverage"]
-rtd = [
+linting = ["ruff"]
+formatting = ["ruff"]
+pytesting = [
     "metran[dino]",
-    "sphinx_rtd_theme",
-    "Ipython",
-    "ipykernel",
-    "nbsphinx",
-    "nbsphinx_link",
+    "pytest",
+    "pytest-cov",
+    "pytest-sugar",
     "jupyter",
+    "hydropandas",
 ]
+coveraging = ["coverage"]
+rtd = ["metran[dino]", "sphinx_rtd_theme", "Ipython", "ipykernel", "jupyter", "myst_nb"]
 full = ["metran[solvers]"]
 dev = ["metran[solvers,linting,pytesting,coveraging]", "tox"]
 
 [tool.setuptools.dynamic]
 version = { attr = "metran.version.__version__" }
 
-[tool.black]
+[tool.ruff]
 line-length = 88
+extend-include = ["*.ipynb"]
+show-fixes = true
+fix = false
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+extend-select = ["I"]
+# See: https://docs.astral.sh/ruff/rules/
+select = [
+    "C4",  # flake8-comprehensions
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "PT",  # pytest-style
+    "D",   # pydocstyle
+    "B",   # flake8-bugbear
+    "NPY", # numpy
+]
+
+[tool.ruff.format]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --durations=0"
@@ -79,7 +95,7 @@ markers = ["notebooks: run notebooks"]
 legacy_tox_ini = """
     [tox]
     requires = tox>=4
-    env_list = format, type, lint, py38, py39, py310, py311, py312
+    env_list = py311, py312, py313, py314, coverage
 
     [testenv]
     description = run unit tests
@@ -93,24 +109,9 @@ legacy_tox_ini = """
     commands =
             pytest tests -m "notebooks"
 
-    [testenv:format]
-    description = run formatters
-    basepython = python3.9
-    extras = formatting
-    commands =
-            black . --check --diff
-            isort . --check --diff --profile=black
-
-    [testenv:lint]
-    description = run linters
-    basepython = python3.9
-    extras = linting
-    commands =
-          flake8 . --count --select=E9,F63,F7,F82 --exit-zero --max-complexity=10 --max-line-length=80 --show-source --statistics
-
     [testenv:coverage]
     description = get coverage report xml
-    basepython = 3.9
+    basepython = 3.13
     extras = coveraging,pytesting,full,dino
     commands =
             coverage run -m pytest tests

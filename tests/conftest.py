@@ -1,3 +1,5 @@
+# ruff: noqa: D100, D103
+
 from pathlib import Path
 from typing import Any, List
 
@@ -10,7 +12,7 @@ import metran
 
 @pytest.fixture
 def series_list() -> List[Series]:
-    path = Path(__file__).parent.parent / "examples/data"
+    path = Path(__file__).parent.parent / "docs/examples/data"
     seriesl = [
         read_csv(
             fi,
@@ -27,13 +29,13 @@ def series_list() -> List[Series]:
 
 @pytest.fixture
 def mt_init(series_list) -> metran.Metran:
-    """Fixture that yields initialized metran object"""
+    """Fixture that yields initialized metran object."""
     return metran.Metran(series_list, name="B21B0214")
 
 
 @pytest.fixture
 def mt(mt_init) -> metran.Metran:
-    """Fixture that yields solved metran object"""
+    """Fixture that yields solved metran object."""
     mt_init.solve()
     return mt_init
 

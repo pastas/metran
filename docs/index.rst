@@ -32,7 +32,7 @@ variables called factors.
    
    Getting Started <getting_started>
    Concepts <concepts>
-   Examples <examples>
+   Examples <examples/index>
    API-docs <modules>
 
 Indices and tables

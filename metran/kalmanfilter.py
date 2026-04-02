@@ -1,5 +1,4 @@
-"""This module contains the Kalman filter class for Metran and associated
-filtering and smoothing methods."""
+"""Kalman filter class for Metran and associated filtering and smoothing methods."""
 
 import sys
 from logging import getLogger
@@ -10,6 +9,72 @@ from pastas.utils import initialize_logger
 
 logger = getLogger(__name__)
 initialize_logger(logger)
+
+
+@njit
+def is_positive_semidefinite(A, tol=1e-10):
+    """Robust PSD check using modified Cholesky.
+
+    Allows small negative values within tolerance.
+    """
+    n = A.shape[0]
+    L = np.zeros((n, n))
+
+    for i in range(n):
+        for j in range(i + 1):
+            s = 0.0
+            for k in range(j):
+                s += L[i, k] * L[j, k]
+
+            if i == j:
+                val = A[i, i] - s
+
+                # Key difference from PD:
+                if val < -tol:
+                    return False
+
+                # Clamp small negatives to zero
+                if val < 0.0:
+                    val = 0.0
+
+                L[i, j] = np.sqrt(val)
+            else:
+                if abs(L[j, j]) < tol:
+                    L[i, j] = 0.0
+                else:
+                    L[i, j] = (A[i, j] - s) / L[j, j]
+
+    return True
+
+
+@njit
+def nearest_psd_cov(A, epsilon=1e-8):
+    """Robust nearest PSD matrix for covariance matrices.
+
+    Parameters
+    ----------
+    A : ndarray
+        Input covariance matrix
+    epsilon : float
+        Minimum eigenvalue (stability floor)
+
+    Returns
+    -------
+    ndarray
+        Positive semi-definite matrix
+    """
+    # Step 1: Force symmetry
+    A = (A + A.T) / 2
+    # Step 2: Eigen decomposition (robust core)
+    eigvals, eigvecs = np.linalg.eigh(A)
+    # Step 3: Clip eigenvalues
+    eigvals = np.maximum(eigvals, epsilon)
+    # Step 4: Reconstruct matrix
+    A_psd = eigvecs @ np.diag(eigvals) @ eigvecs.T
+    # Step 5: Final symmetry
+    A_psd = (A_psd + A_psd.T) / 2
+
+    return A_psd
 
 
 def filter_predict(
@@ -93,10 +158,9 @@ def filter_update(
     detf : float
         Log of determinant of innovation variances matrix.
     """
-
     sigma = 0.0
     detf = 0.0
-    n_observation = np.int(observation_count)
+    n_observation = np.int64(observation_count)
     for i in range(n_observation):
         observation_index = int(observation_indices[i])
         obsmat = observation_matrix[observation_index, :]
@@ -107,9 +171,9 @@ def filter_update(
             + observation_variance[observation_index]
         )
         kgain = dot_statecov_obsmat / innovation_covariance
-        state_covariance = state_covariance - (
-            np.outer(kgain, kgain) * innovation_covariance
-        )
+        state_covariance -= np.outer(kgain, kgain) * innovation_covariance
+        if not is_positive_semidefinite(state_covariance):
+            state_covariance = nearest_psd_cov(state_covariance)
 
         state_mean = state_mean + kgain * innovation
 
@@ -130,7 +194,7 @@ def seqkalmanfilter_np(
     filtered_state_mean,
     filtered_state_covariance,
 ):
-    """Method to run sequential Kalman filter optimized for use with numpy.
+    """Run sequential Kalman filter optimized for use with numpy.
 
     This method is suggested if numba is not installed.
     It is, however, much slower than seqkalmanfilter combined with numba.
@@ -251,7 +315,7 @@ def seqkalmanfilter(
     filtered_state_mean,
     filtered_state_covariance,
 ):
-    """Method to run sequential Kalman filter optimized for use with numba.
+    """Run sequential Kalman filter optimized for use with numba.
 
     This method requires numba to be installed. With numba, this method
     is much faster than seqkalmanfilter_np. However, without numba,
@@ -348,14 +412,12 @@ def seqkalmanfilter(
 
                 dotmat = np.zeros(dim, dtype=np.float64)
                 for r in range(dim):
-                    summed = 0.0
+                    dotmat[r] = 0.0
                     for c in range(dim):
-                        summed += (
+                        dotmat[r] += (
                             predicted_state_covariance[r, c]
                             * observation_matrix[idx, c]
                         )
-                    dotmat[r] = summed
-
                 summed = 0.0
                 for r in range(dim):
                     summed += observation_matrix[idx, r] * dotmat[r]
@@ -367,15 +429,21 @@ def seqkalmanfilter(
 
                 for r in range(dim):
                     for c in range(dim):
-                        predicted_state_covariance[r, c] += (
-                            -kgain[r] * kgain[c] * innovation_variance
+                        predicted_state_covariance[r, c] -= (
+                            kgain[r] * kgain[c] * innovation_variance
                         )
+                if not is_positive_semidefinite(predicted_state_covariance):
+                    predicted_state_covariance = nearest_psd_cov(
+                        predicted_state_covariance
+                    )
 
                 for r in range(dim):
                     predicted_state_mean[r] += kgain[r] * innovation
 
                 sigma += innovation**2 / innovation_variance
                 detf += np.log(innovation_variance)
+                if np.isnan(detf):
+                    raise RuntimeError("Error calculating loglikelihood")
 
             sigmas[sigmacount] = sigma
             detfs[sigmacount] = detf
@@ -407,7 +475,7 @@ def kalmansmoother(
     predicted_state_covariances,
     transition_matrix,
 ):
-    """Method to run the Kalman smoother.
+    """Run the Kalman smoother.
 
     Estimate the hidden state at time for each time step given all
     observations.
@@ -438,7 +506,6 @@ def kalmansmoother(
         Covariance matrix of hidden state distributions
         for times [0...n_timesteps-1] given all observations
     """
-
     n_timesteps = len(filtered_state_means)
     n_state = len(filtered_state_means[0])
 
@@ -497,14 +564,13 @@ class SPKalmanFilter:
         self.sigmas = None
         self.nobs = None
         self.mask = False
-
         if engine == "numpy" or "numba" not in sys.modules:
             self.filtermethod = seqkalmanfilter_np
         else:
             self.filtermethod = seqkalmanfilter
 
     def init_states(self):
-        """Method to initialize state means and covariances.
+        """Initialize state means and covariances.
 
         Returns
         -------
@@ -524,7 +590,7 @@ class SPKalmanFilter:
         observation_matrix,
         observation_variance,
     ):
-        """Method to set matrices of state space model.
+        """Set matrices of state space model.
 
         Parameters
         ----------
@@ -548,7 +614,7 @@ class SPKalmanFilter:
         self.nstate = np.int64(self.transition_matrix.shape[0])
 
     def get_mle(self, warmup=1):
-        """Method to calculate maximum likelihood estimate.
+        """Calculate maximum likelihood estimate.
 
         Parameters
         ----------
@@ -567,7 +633,7 @@ class SPKalmanFilter:
         return mle
 
     def simulate(self, observation_matrix, method="smoother"):
-        """Method to get simulated means and covariances.
+        """Get simulated means and covariances.
 
         Parameters
         ----------
@@ -603,7 +669,7 @@ class SPKalmanFilter:
         return (simulated_means, simulated_variances)
 
     def decompose(self, observation_matrix, method="smoother"):
-        """Method to decompose simulated means.
+        """Decompose simulated means.
 
         Decomposition into specific dynamic factors (sdf) and common
         dynamic factors (cdf).
@@ -676,8 +742,7 @@ class SPKalmanFilter:
     def run_smoother(self):
         """Run Kalman smoother.
 
-        Calculate smoothed state means and covariances using the Kalman
-        smoother.
+        Calculate smoothed state means and covariances using the Kalman smoother.
         """
         # run Kalman filter to get filtered state estimates and covariances
         self.run_filter()
@@ -696,7 +761,7 @@ class SPKalmanFilter:
     def run_filter(
         self, initial_state_mean=None, initial_state_covariance=None, engine=None
     ):
-        """Method to run the Kalman Filter.
+        """Run the Kalman Filter.
 
         This is a sequential processing implementation of the Kalman filter
         requiring a diagonal observation error covariance matrix.
@@ -722,7 +787,6 @@ class SPKalmanFilter:
         -------
         None
         """
-
         if self.mask:
             logger.info("Running Kalman filter with masked observations.")
 

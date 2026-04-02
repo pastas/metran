@@ -1,3 +1,5 @@
+"""Example script showcasing Metran."""
+
 import pandas as pd
 
 import metran
@@ -12,7 +14,7 @@ for s in range(nts):
         index_col=0,
         names=["B21B021400" + str(s + 1)],
         parse_dates=True,
-        date_format="%d-%m-%Y",
+        date_format="%Y-%m-%d",
     )
     series.append(ts)
 
