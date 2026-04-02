@@ -12,7 +12,7 @@ import metran
 
 @pytest.fixture
 def series_list() -> List[Series]:
-    path = Path(__file__).parent.parent / "examples/data"
+    path = Path(__file__).parent.parent / "docs/examples/data"
     seriesl = [
         read_csv(
             fi,
