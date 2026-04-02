@@ -2,4 +2,6 @@
 
 
 def test_import():
-    pass
+    import metran
+
+    assert metran.__version__

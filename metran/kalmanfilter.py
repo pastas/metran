@@ -4,7 +4,6 @@ import sys
 from logging import getLogger
 
 import numpy as np
-from pastas import set_use_numba
 from pastas.decorators import njit
 from pastas.utils import initialize_logger
 
@@ -566,10 +565,8 @@ class SPKalmanFilter:
         self.nobs = None
         self.mask = False
         if engine == "numpy" or "numba" not in sys.modules:
-            set_use_numba(False)
             self.filtermethod = seqkalmanfilter_np
         else:
-            set_use_numba(True)
             self.filtermethod = seqkalmanfilter
 
     def init_states(self):

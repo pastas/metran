@@ -6,7 +6,6 @@ from os import getlogin
 import numpy as np
 from pandas import DataFrame, DatetimeIndex, Series, Timedelta, Timestamp, concat
 from pandas.tseries.frequencies import to_offset
-from pastas import set_use_numba
 from pastas.timeseries import TimeSeries
 from pastas.utils import initialize_logger, validate_name
 from pastas.version import __version__
@@ -27,7 +26,6 @@ from .solver import ScipySolve
 
 logger = getLogger(__name__)
 initialize_logger(logger)
-set_use_numba(True)
 
 
 class Metran:

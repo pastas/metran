@@ -27,7 +27,7 @@ class FactorAnalysis:
     """
 
     def __init__(self, maxfactors=None):
-        if maxfactors == 0:
+        if not isinstance(maxfactors, int) or maxfactors <= 0:
             msg = "The argument maxfactors must be None or greater than 0."
             logger.error(msg)
             raise Exception(msg)
