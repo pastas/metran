@@ -55,15 +55,7 @@ pytesting = [
     "hydropandas",
 ]
 coveraging = ["coverage"]
-rtd = [
-    "metran[dino]",
-    "sphinx_rtd_theme",
-    "Ipython",
-    "ipykernel",
-    "nbsphinx",
-    "nbsphinx_link",
-    "jupyter",
-]
+rtd = ["metran[dino]", "sphinx_rtd_theme", "Ipython", "ipykernel", "jupyter", "myst_nb"]
 full = ["metran[solvers]"]
 dev = ["metran[solvers,linting,pytesting,coveraging]", "tox"]
 
